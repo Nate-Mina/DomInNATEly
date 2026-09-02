@@ -13,6 +13,38 @@ export interface Track {
   featuredLyrics?: string;
 }
 
+export interface SunoTrack {
+  id: string; // Suno UUID
+  title: string;
+  artist: string;
+  handle: string;
+  index: number;
+  image: string;
+  audioUrl: string; // CloudFront m4a
+  videoUrl: string; // Suno mp4
+  embedUrl: string; // Suno embed widget
+  sunoUrl: string; // Suno song link
+  duration: number; // in seconds
+  durationFormatted: string; // e.g. "6:27"
+  tags: string[];
+  lyrics: string;
+}
+
+export interface SunoPlaylistInfo {
+  id: string;
+  name: string;
+  description: string;
+  cover: string;
+  user_display_name: string;
+  user_handle: string;
+  tiktok_handle: string;
+  url: string;
+  totalTracks: number;
+  totalDurationSeconds: number;
+}
+
+export type ActivePage = 'youtube' | 'suno';
+
 export type SortField = 'playlist' | 'duration-desc' | 'duration-asc' | 'title-asc' | 'title-desc' | 'newest';
 
 export type CategoryFilter = 'all' | 'rock' | 'remix' | 'acoustic' | 'duet' | 'alt';

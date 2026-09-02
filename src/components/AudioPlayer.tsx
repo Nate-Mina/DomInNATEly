@@ -15,6 +15,7 @@ import {
   Maximize2
 } from 'lucide-react';
 import { Track } from '../types';
+import { playerManager } from '../services/playerManager';
 
 interface AudioPlayerProps {
   currentTrack: Track | null;
@@ -56,6 +57,29 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const isReadyRef = useRef<boolean>(false);
   const pendingTrackIdRef = useRef<string | null>(null);
   const containerId = 'youtube-player-container';
+
+  // PlayerManager synchronization to prevent simultaneous audio output with Suno
+  useEffect(() => {
+    if (isPlaying) {
+      playerManager.setActivePlayer('youtube');
+    }
+  }, [isPlaying]);
+
+  useEffect(() => {
+    const unsubscribe = playerManager.subscribe((active) => {
+      if (active === 'suno' && isPlaying) {
+        setIsPlaying(false);
+        if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
+          try {
+            playerRef.current.pauseVideo();
+          } catch (err) {
+            // ignore
+          }
+        }
+      }
+    });
+    return unsubscribe;
+  }, [isPlaying, setIsPlaying]);
 
   // Format seconds to mm:ss
   const formatTime = (secs: number) => {

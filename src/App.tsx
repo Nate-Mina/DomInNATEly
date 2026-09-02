@@ -1,12 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { TRACKS, PLAYLIST_URL, YOUTUBE_CHANNEL_URL } from './data/tracks';
-import { Track, SortField, CategoryFilter } from './types';
+import { SUNO_TRACKS } from './data/sunoData';
+import { Track, SunoTrack, ActivePage, SortField, CategoryFilter } from './types';
 import { Header } from './components/Header';
 import { TrackCard } from './components/TrackCard';
 import { SortingAndFilter } from './components/SortingAndFilter';
 import { AudioPlayer } from './components/AudioPlayer';
 import { ShareModal } from './components/ShareModal';
 import { TrackDetailModal } from './components/TrackDetailModal';
+import { SunoPage } from './components/SunoPage';
 import { Play, Pause, Shuffle, LayoutGrid, List, Music, Sparkles, Disc, Heart, Share2 } from 'lucide-react';
 
 export default function App() {
@@ -20,9 +22,16 @@ export default function App() {
     return true;
   });
 
-  // Player State
+  // Active Page State ('youtube' | 'suno')
+  const [activePage, setActivePage] = useState<ActivePage>('youtube'); // Default to YouTube Audio Gallery first
+
+  // YouTube Player State
   const [currentTrack, setCurrentTrack] = useState<Track | null>(TRACKS[0]);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
+
+  // Suno Player State
+  const [currentSunoTrack, setCurrentSunoTrack] = useState<SunoTrack | null>(SUNO_TRACKS[0]);
+  const [isSunoPlaying, setIsSunoPlaying] = useState<boolean>(false);
 
   // Sorting & Filtering State
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -125,12 +134,72 @@ export default function App() {
       <Header
         isDarkMode={isDarkMode}
         onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
-        trackCount={TRACKS.length}
+        trackCount={activePage === 'suno' ? SUNO_TRACKS.length : TRACKS.length}
         onQuickShareAll={() => setSharingTrack(currentTrack || TRACKS[0])}
       />
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-6 pb-36">
+        {/* Page Switcher Tabs */}
+        <div className="flex flex-wrap items-center justify-center gap-3 mb-6">
+          <button
+            id="tab-youtube-gallery"
+            onClick={() => {
+              setActivePage('youtube');
+              if (isSunoPlaying) setIsSunoPlaying(false);
+            }}
+            className={`px-5 py-2.5 rounded-full font-bold text-xs sm:text-sm flex items-center gap-2 transition-all border shadow-sm ${
+              activePage === 'youtube'
+                ? 'bg-cyan-500 text-black border-cyan-400 shadow-cyan-500/25 ring-2 ring-cyan-400/40'
+                : isDarkMode
+                ? 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10 hover:text-cyan-400'
+                : 'bg-white border-neutral-300 text-neutral-800 hover:bg-neutral-100'
+            }`}
+          >
+            <Disc className="w-4 h-4" />
+            <span>YouTube Audio Gallery</span>
+          </button>
+
+          <button
+            id="tab-suno-playlist"
+            onClick={() => {
+              setActivePage('suno');
+              if (isPlaying) setIsPlaying(false);
+            }}
+            className={`px-5 py-2.5 rounded-full font-bold text-xs sm:text-sm flex items-center gap-2 transition-all border shadow-sm ${
+              activePage === 'suno'
+                ? 'bg-cyan-500 text-black border-cyan-400 shadow-cyan-500/25 ring-2 ring-cyan-400/40'
+                : isDarkMode
+                ? 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10 hover:text-cyan-400'
+                : 'bg-white border-neutral-300 text-neutral-800 hover:bg-neutral-100'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-cyan-400" />
+            <span>Suno AI Playlist (20 Tracks)</span>
+          </button>
+        </div>
+
+        {activePage === 'suno' ? (
+          <SunoPage
+            isDarkMode={isDarkMode}
+            currentTrack={currentSunoTrack}
+            isPlaying={isSunoPlaying}
+            onPlayTrack={(t) => {
+              if (currentSunoTrack?.id === t.id) {
+                setIsSunoPlaying(!isSunoPlaying);
+              } else {
+                setCurrentSunoTrack(t);
+                setIsSunoPlaying(true);
+              }
+            }}
+            onTogglePlayPause={() => setIsSunoPlaying(!isSunoPlaying)}
+            onTrackChange={(t) => {
+              setCurrentSunoTrack(t);
+              setIsSunoPlaying(true);
+            }}
+          />
+        ) : (
+          <>
         {/* Quick Actions Bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <div className="flex items-center gap-2.5">
@@ -461,6 +530,8 @@ export default function App() {
             </div>
           </aside>
         </div>
+        </>
+      )}
 
         {/* Footer info & playlist credit */}
         <footer
