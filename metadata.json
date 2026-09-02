@@ -1,0 +1,6 @@
+{
+  "name": "DomInNATEly Music Gallery",
+  "description": "Music gallery and audio player for DomInNATEly featuring tracks from the official playlist, custom sorting, dark mode, and social sharing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
