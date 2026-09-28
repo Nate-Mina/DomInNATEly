@@ -1,5 +1,5 @@
 export interface Track {
-  id: string; // YouTube Video ID
+  id: string; // YouTube Video ID or Suno UUID
   title: string;
   artist: string;
   duration: string; // e.g. "6:28"
@@ -11,6 +11,12 @@ export interface Track {
   tags: string[];
   description?: string;
   featuredLyrics?: string;
+  // Suno integration fields
+  audioUrl?: string;
+  videoUrl?: string;
+  embedUrl?: string;
+  sunoUrl?: string;
+  isSuno?: boolean;
 }
 
 export interface SunoTrack {
@@ -30,6 +36,26 @@ export interface SunoTrack {
   lyrics: string;
 }
 
+export const sunoToTrack = (st: SunoTrack): Track => ({
+  id: st.id,
+  title: st.title,
+  artist: st.artist,
+  duration: st.durationFormatted,
+  durationSeconds: st.duration,
+  index: st.index,
+  thumbnail: st.image,
+  youtubeUrl: st.sunoUrl,
+  category: 'alt',
+  tags: st.tags,
+  description: `Suno AI Track • @${st.handle}`,
+  featuredLyrics: st.lyrics,
+  audioUrl: st.audioUrl,
+  videoUrl: st.videoUrl,
+  embedUrl: st.embedUrl,
+  sunoUrl: st.sunoUrl,
+  isSuno: true,
+});
+
 export interface SunoPlaylistInfo {
   id: string;
   name: string;
@@ -41,6 +67,18 @@ export interface SunoPlaylistInfo {
   url: string;
   totalTracks: number;
   totalDurationSeconds: number;
+}
+
+export interface YouTubePlaylistInfo {
+  id: string;
+  name: string;
+  description: string;
+  channel: string;
+  channelUrl: string;
+  playlistUrl: string;
+  totalTracks: number;
+  totalDurationFormatted: string;
+  cover: string;
 }
 
 export type ActivePage = 'youtube' | 'suno';

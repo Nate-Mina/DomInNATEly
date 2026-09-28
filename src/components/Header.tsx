@@ -1,12 +1,15 @@
 import React from 'react';
-import { ExternalLink, Music2, Share2, Disc3 } from 'lucide-react';
+import { ExternalLink, Music2, Share2, Disc3, Sparkles } from 'lucide-react';
 import { PLAYLIST_URL, YOUTUBE_CHANNEL_URL } from '../data/tracks';
+import { SUNO_PLAYLIST_INFO } from '../data/sunoData';
 
 interface HeaderProps {
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
   trackCount: number;
   onQuickShareAll?: () => void;
+  onSelectTab?: (tab: 'youtube' | 'suno') => void;
+  activeTab?: 'youtube' | 'suno';
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -86,10 +89,27 @@ export const Header: React.FC<HeaderProps> = ({
                   ? 'bg-white/5 border-white/10 text-white/80 hover:text-cyan-400 hover:border-cyan-400/40 hover:bg-white/10'
                   : 'bg-neutral-100 border-neutral-300 text-neutral-700 hover:text-cyan-600 hover:bg-neutral-200'
               }`}
-              title="Open original playlist on YouTube"
+              title="Open DomInNATEly official playlists on YouTube"
             >
-              <Music2 className="w-3.5 h-3.5 text-purple-400" />
-              <span className="hidden lg:inline">Playlist</span>
+              <Music2 className="w-3.5 h-3.5 text-red-500" />
+              <span className="hidden lg:inline">YT Playlists</span>
+              <ExternalLink className="w-3 h-3 opacity-60" />
+            </a>
+
+            <a
+              id="suno-playlist-header-link"
+              href={SUNO_PLAYLIST_INFO.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold uppercase tracking-wider transition-all ${
+                isDarkMode
+                  ? 'bg-white/5 border-white/10 text-white/80 hover:text-cyan-400 hover:border-cyan-400/40 hover:bg-white/10'
+                  : 'bg-neutral-100 border-neutral-300 text-neutral-700 hover:text-cyan-600 hover:bg-neutral-200'
+              }`}
+              title="Open official DomInNATEly playlist on Suno"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden lg:inline">Suno Playlist</span>
               <ExternalLink className="w-3 h-3 opacity-60" />
             </a>
           </div>

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { TRACKS, PLAYLIST_URL, YOUTUBE_CHANNEL_URL } from './data/tracks';
+import { TRACKS, PLAYLIST_URL, YOUTUBE_CHANNEL_URL, YOUTUBE_PLAYLIST_INFO } from './data/tracks';
 import { SUNO_TRACKS } from './data/sunoData';
-import { Track, SunoTrack, ActivePage, SortField, CategoryFilter } from './types';
+import { Track, SunoTrack, ActivePage, SortField, CategoryFilter, sunoToTrack } from './types';
 import { Header } from './components/Header';
 import { TrackCard } from './components/TrackCard';
 import { SortingAndFilter } from './components/SortingAndFilter';
@@ -9,7 +9,7 @@ import { AudioPlayer } from './components/AudioPlayer';
 import { ShareModal } from './components/ShareModal';
 import { TrackDetailModal } from './components/TrackDetailModal';
 import { SunoPage } from './components/SunoPage';
-import { Play, Pause, Shuffle, LayoutGrid, List, Music, Sparkles, Disc, Heart, Share2 } from 'lucide-react';
+import { Play, Pause, Shuffle, LayoutGrid, List, Music, Sparkles, Disc, Heart, Share2, ExternalLink, Flame, Clock } from 'lucide-react';
 
 export default function App() {
   // Dark Mode state with localStorage persistence
@@ -53,6 +53,9 @@ export default function App() {
     }
   }, [isDarkMode]);
 
+  // Suno Tracks converted to standard Track interface for AudioPlayer
+  const sunoTracksAsStandard = useMemo(() => SUNO_TRACKS.map(sunoToTrack), []);
+
   // Handle Play/Pause
   const handlePlayTrack = (track: Track) => {
     if (currentTrack?.id === track.id) {
@@ -62,6 +65,28 @@ export default function App() {
       setIsPlaying(true);
     }
   };
+
+  // Handle Play/Pause for Suno Tracks (seamlessly links to sticky AudioPlayer)
+  const handlePlaySunoTrack = (sunoTrack: SunoTrack) => {
+    setCurrentSunoTrack(sunoTrack);
+    const converted = sunoToTrack(sunoTrack);
+    if (currentTrack?.id === converted.id) {
+      setIsPlaying(!isPlaying);
+      setIsSunoPlaying(!isPlaying);
+    } else {
+      setCurrentTrack(converted);
+      setIsPlaying(true);
+      setIsSunoPlaying(true);
+    }
+  };
+
+  // Active Suno Track synced with currentTrack
+  const activeSunoTrack = useMemo(() => {
+    if (currentTrack?.isSuno) {
+      return SUNO_TRACKS.find((st) => st.id === currentTrack.id) || currentSunoTrack;
+    }
+    return currentSunoTrack;
+  }, [currentTrack, currentSunoTrack]);
 
   // Filtered & Sorted Tracks
   const filteredAndSortedTracks = useMemo(() => {
@@ -108,6 +133,14 @@ export default function App() {
     return result;
   }, [searchQuery, selectedCategory, sortField]);
 
+  // Playlist passed to sticky AudioPlayer
+  const activePlaylistForAudioPlayer = useMemo(() => {
+    if (activePage === 'suno' || currentTrack?.isSuno) {
+      return sunoTracksAsStandard;
+    }
+    return filteredAndSortedTracks.length > 0 ? filteredAndSortedTracks : TRACKS;
+  }, [activePage, currentTrack?.isSuno, sunoTracksAsStandard, filteredAndSortedTracks]);
+
   // Quick Play All / Shuffle All
   const handlePlayAll = () => {
     if (filteredAndSortedTracks.length > 0) {
@@ -146,7 +179,6 @@ export default function App() {
             id="tab-youtube-gallery"
             onClick={() => {
               setActivePage('youtube');
-              if (isSunoPlaying) setIsSunoPlaying(false);
             }}
             className={`px-5 py-2.5 rounded-full font-bold text-xs sm:text-sm flex items-center gap-2 transition-all border shadow-sm ${
               activePage === 'youtube'
@@ -157,14 +189,13 @@ export default function App() {
             }`}
           >
             <Disc className="w-4 h-4" />
-            <span>YouTube Audio Gallery</span>
+            <span>YouTube Audio Gallery ({TRACKS.length} Tracks)</span>
           </button>
 
           <button
             id="tab-suno-playlist"
             onClick={() => {
               setActivePage('suno');
-              if (isPlaying) setIsPlaying(false);
             }}
             className={`px-5 py-2.5 rounded-full font-bold text-xs sm:text-sm flex items-center gap-2 transition-all border shadow-sm ${
               activePage === 'suno'
@@ -175,31 +206,169 @@ export default function App() {
             }`}
           >
             <Sparkles className="w-4 h-4 text-cyan-400" />
-            <span>Suno AI Playlist (20 Tracks)</span>
+            <span>Suno AI Playlist ({SUNO_TRACKS.length} Tracks)</span>
           </button>
         </div>
 
         {activePage === 'suno' ? (
           <SunoPage
             isDarkMode={isDarkMode}
-            currentTrack={currentSunoTrack}
-            isPlaying={isSunoPlaying}
-            onPlayTrack={(t) => {
-              if (currentSunoTrack?.id === t.id) {
-                setIsSunoPlaying(!isSunoPlaying);
-              } else {
-                setCurrentSunoTrack(t);
-                setIsSunoPlaying(true);
-              }
+            currentTrack={activeSunoTrack}
+            isPlaying={isPlaying && Boolean(currentTrack?.isSuno)}
+            onPlayTrack={handlePlaySunoTrack}
+            onTogglePlayPause={() => {
+              setIsPlaying(!isPlaying);
+              setIsSunoPlaying(!isPlaying);
             }}
-            onTogglePlayPause={() => setIsSunoPlaying(!isSunoPlaying)}
-            onTrackChange={(t) => {
-              setCurrentSunoTrack(t);
-              setIsSunoPlaying(true);
-            }}
+            onTrackChange={handlePlaySunoTrack}
+            onSwitchToYouTube={() => setActivePage('youtube')}
           />
         ) : (
           <>
+            {/* YouTube Playlist Hero Banner */}
+            <section
+              id="youtube-hero-banner"
+              className={`relative overflow-hidden rounded-3xl border mb-8 p-6 sm:p-8 md:p-10 transition-colors ${
+                isDarkMode
+                  ? 'bg-gradient-to-br from-neutral-900/90 via-black to-neutral-950 border-white/10 shadow-2xl'
+                  : 'bg-gradient-to-br from-red-50/70 via-white to-neutral-100 border-neutral-200 shadow-lg'
+              }`}
+            >
+              <div className="absolute -top-24 -right-24 w-96 h-96 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none" />
+
+              <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-6 sm:gap-8">
+                {/* Playlist Artwork */}
+                <div className="relative flex-shrink-0 group">
+                  <div className="w-44 h-44 sm:w-52 sm:h-52 md:w-60 md:h-60 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/10 bg-neutral-900">
+                    <img
+                      src={YOUTUBE_PLAYLIST_INFO.cover}
+                      alt={YOUTUBE_PLAYLIST_INFO.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  </div>
+                  <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-red-600 text-white font-mono font-bold text-[10px] tracking-wider uppercase shadow-lg shadow-red-600/30 flex items-center gap-1.5 whitespace-nowrap">
+                    <Flame className="w-3 h-3 fill-current" />
+                    <span>YouTube Top Hits</span>
+                  </div>
+                </div>
+
+                {/* Playlist Info & Meta */}
+                <div className="flex-1 text-center md:text-left flex flex-col justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mb-3">
+                      <span className="px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider uppercase bg-red-500/15 text-red-400 border border-red-500/30 flex items-center gap-1.5">
+                        <Disc className="w-3.5 h-3.5" />
+                        <span>Official YouTube Playlist</span>
+                      </span>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-mono border ${
+                          isDarkMode ? 'bg-white/5 border-white/10 text-white/70' : 'bg-neutral-100 border-neutral-300 text-neutral-700'
+                        }`}
+                      >
+                        {TRACKS.length} Recorded Tracks
+                      </span>
+                      <span
+                        className={`px-3 py-1 rounded-full text-xs font-mono border ${
+                          isDarkMode ? 'bg-white/5 border-white/10 text-white/70' : 'bg-neutral-100 border-neutral-300 text-neutral-700'
+                        }`}
+                      >
+                        {YOUTUBE_PLAYLIST_INFO.totalDurationFormatted}
+                      </span>
+                    </div>
+
+                    <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
+                      {YOUTUBE_PLAYLIST_INFO.name}
+                    </h1>
+
+                    <div className="mt-2 flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3 text-xs sm:text-sm font-medium">
+                      <span className="text-cyan-400 font-bold">{YOUTUBE_PLAYLIST_INFO.channel}</span>
+                      <span className="opacity-40">•</span>
+                      <a
+                        href={YOUTUBE_PLAYLIST_INFO.channelUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-red-400 hover:underline flex items-center gap-1 font-mono text-xs"
+                      >
+                        <span>Official Channel</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                      <span className="opacity-40">•</span>
+                      <a
+                        href={YOUTUBE_PLAYLIST_INFO.playlistUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-cyan-400 hover:underline flex items-center gap-1 font-mono text-xs"
+                      >
+                        <span>View All YouTube Playlists</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+
+                    <p
+                      className={`mt-3 text-sm max-w-2xl leading-relaxed ${
+                        isDarkMode ? 'text-white/70' : 'text-neutral-600'
+                      }`}
+                    >
+                      {YOUTUBE_PLAYLIST_INFO.description} Full-length studio recordings, explosive remixes, and introspective anthems.
+                    </p>
+                  </div>
+
+                  <div className="mt-6 flex flex-wrap items-center justify-center md:justify-start gap-3">
+                    <button
+                      id="youtube-hero-play-all-btn"
+                      onClick={handlePlayAll}
+                      className="px-5 py-2.5 rounded-full bg-cyan-400 hover:bg-cyan-300 text-black font-bold text-sm flex items-center gap-2 shadow-lg shadow-cyan-400/25 transition-transform active:scale-95"
+                    >
+                      <Play className="w-4 h-4 fill-current" />
+                      <span>Play All ({TRACKS.length})</span>
+                    </button>
+
+                    <button
+                      id="youtube-hero-shuffle-btn"
+                      onClick={handleShufflePlayAll}
+                      className={`px-4 py-2.5 rounded-full border text-sm font-bold flex items-center gap-2 transition-all active:scale-95 ${
+                        isDarkMode
+                          ? 'bg-white/5 border-white/10 text-white hover:text-cyan-400 hover:border-cyan-400/40 hover:bg-white/10'
+                          : 'bg-white border-neutral-300 text-neutral-800 hover:bg-neutral-100'
+                      }`}
+                    >
+                      <Shuffle className="w-4 h-4 text-cyan-400" />
+                      <span>Shuffle</span>
+                    </button>
+
+                    <a
+                      id="youtube-open-official-btn"
+                      href={YOUTUBE_PLAYLIST_INFO.playlistUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`px-4 py-2.5 rounded-full border text-sm font-semibold flex items-center gap-1.5 transition-all ${
+                        isDarkMode
+                          ? 'bg-white/5 border-white/10 text-white/80 hover:text-red-400 hover:border-red-400/40 hover:bg-white/10'
+                          : 'bg-white border-neutral-300 text-neutral-700 hover:bg-neutral-100'
+                      }`}
+                    >
+                      <Disc className="w-4 h-4 text-red-500" />
+                      <span>YouTube Playlists</span>
+                      <ExternalLink className="w-3.5 h-3.5 opacity-60" />
+                    </a>
+
+                    <button
+                      id="switch-to-suno-hero-btn"
+                      onClick={() => setActivePage('suno')}
+                      className={`px-4 py-2.5 rounded-full border text-sm font-semibold flex items-center gap-1.5 transition-all ${
+                        isDarkMode
+                          ? 'bg-white/5 border-white/10 text-cyan-400 hover:bg-white/10'
+                          : 'bg-neutral-100 border-neutral-300 text-cyan-700 hover:bg-neutral-200'
+                      }`}
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>Switch to Suno Playlist (20)</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
         {/* Quick Actions Bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <div className="flex items-center gap-2.5">
@@ -276,6 +445,7 @@ export default function App() {
           selectedCategory={selectedCategory}
           onCategoryChange={setSelectedCategory}
           totalResults={filteredAndSortedTracks.length}
+          totalTracks={TRACKS.length}
           isDarkMode={isDarkMode}
         />
 
@@ -563,15 +733,42 @@ export default function App() {
       {/* Interactive Sticky Audio Player */}
       <AudioPlayer
         currentTrack={currentTrack}
-        playlist={filteredAndSortedTracks.length > 0 ? filteredAndSortedTracks : TRACKS}
+        playlist={activePlaylistForAudioPlayer}
+        allPlaylists={{
+          youtube: filteredAndSortedTracks.length > 0 ? filteredAndSortedTracks : TRACKS,
+          suno: sunoTracksAsStandard,
+        }}
+        onSwitchPlaylist={(type) => {
+          setActivePage(type);
+          if (type === 'suno' && SUNO_TRACKS.length > 0) {
+            handlePlaySunoTrack(SUNO_TRACKS[0]);
+          } else if (type === 'youtube' && TRACKS.length > 0) {
+            handlePlayTrack(TRACKS[0]);
+          }
+        }}
+        currentPlaylistType={currentTrack?.isSuno ? 'suno' : 'youtube'}
         onTrackChange={(track) => {
           setCurrentTrack(track);
           setIsPlaying(true);
+          if (track.isSuno) {
+            const st = SUNO_TRACKS.find((s) => s.id === track.id);
+            if (st) {
+              setCurrentSunoTrack(st);
+              setIsSunoPlaying(true);
+            }
+          } else {
+            setIsSunoPlaying(false);
+          }
         }}
         onOpenShare={(track) => setSharingTrack(track)}
         isDarkMode={isDarkMode}
         isPlaying={isPlaying}
-        setIsPlaying={setIsPlaying}
+        setIsPlaying={(playing) => {
+          setIsPlaying(playing);
+          if (currentTrack?.isSuno) {
+            setIsSunoPlaying(playing);
+          }
+        }}
       />
 
       {/* Social Media Sharing Modal for Every Song */}

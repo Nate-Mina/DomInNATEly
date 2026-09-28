@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   Play,
   Pause,
@@ -12,7 +12,11 @@ import {
   Tv,
   ChevronDown,
   ChevronUp,
-  Maximize2
+  Maximize2,
+  ListMusic,
+  Disc,
+  Sparkles,
+  X
 } from 'lucide-react';
 import { Track } from '../types';
 import { playerManager } from '../services/playerManager';
@@ -25,6 +29,12 @@ interface AudioPlayerProps {
   isDarkMode: boolean;
   isPlaying: boolean;
   setIsPlaying: (playing: boolean) => void;
+  allPlaylists?: {
+    youtube: Track[];
+    suno: Track[];
+  };
+  onSwitchPlaylist?: (playlistType: 'youtube' | 'suno') => void;
+  currentPlaylistType?: 'youtube' | 'suno';
 }
 
 declare global {
@@ -42,6 +52,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   isDarkMode,
   isPlaying,
   setIsPlaying,
+  allPlaylists,
+  onSwitchPlaylist,
+  currentPlaylistType = 'youtube',
 }) => {
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
@@ -50,24 +63,40 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [isShuffle, setIsShuffle] = useState<boolean>(false);
   const [isRepeat, setIsRepeat] = useState<boolean>(false);
   const [showVideoModal, setShowVideoModal] = useState<boolean>(false);
+  const [showQueueModal, setShowQueueModal] = useState<boolean>(false);
+  const [queueTab, setQueueTab] = useState<'current' | 'youtube' | 'suno'>('current');
+
+  const displayedQueueTracks = useMemo(() => {
+    if (queueTab === 'youtube' && allPlaylists?.youtube) {
+      return allPlaylists.youtube;
+    }
+    if (queueTab === 'suno' && allPlaylists?.suno) {
+      return allPlaylists.suno;
+    }
+    return playlist;
+  }, [queueTab, allPlaylists, playlist]);
   const [isExpandedMobile, setIsExpandedMobile] = useState<boolean>(false);
 
   const playerRef = useRef<any>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<any>(null);
   const isReadyRef = useRef<boolean>(false);
   const pendingTrackIdRef = useRef<string | null>(null);
   const containerId = 'youtube-player-container';
 
-  // PlayerManager synchronization to prevent simultaneous audio output with Suno
+  // Check if current track is a Suno AI track (plays through HTML5 audio stream)
+  const isSunoTrack = Boolean(currentTrack?.audioUrl || currentTrack?.isSuno);
+
+  // PlayerManager synchronization to prevent simultaneous audio output with any other players
   useEffect(() => {
     if (isPlaying) {
-      playerManager.setActivePlayer('youtube');
+      playerManager.setActivePlayer(isSunoTrack ? 'suno' : 'youtube');
     }
-  }, [isPlaying]);
+  }, [isPlaying, isSunoTrack]);
 
   useEffect(() => {
     const unsubscribe = playerManager.subscribe((active) => {
-      if (active === 'suno' && isPlaying) {
+      if (active === 'suno' && isPlaying && !isSunoTrack) {
         setIsPlaying(false);
         if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
           try {
@@ -76,10 +105,15 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             // ignore
           }
         }
+      } else if (active === 'youtube' && isPlaying && isSunoTrack) {
+        setIsPlaying(false);
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
       }
     });
     return unsubscribe;
-  }, [isPlaying, setIsPlaying]);
+  }, [isPlaying, isSunoTrack, setIsPlaying]);
 
   // Format seconds to mm:ss
   const formatTime = (secs: number) => {
@@ -105,19 +139,60 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   // Previous Track
   const handlePrevious = useCallback(() => {
     if (!currentTrack || playlist.length === 0) return;
-    if (currentTime > 4 && playerRef.current && typeof playerRef.current.seekTo === 'function') {
-      try {
-        playerRef.current.seekTo(0, true);
+    if (currentTime > 4) {
+      if (isSunoTrack && audioRef.current) {
+        audioRef.current.currentTime = 0;
         setCurrentTime(0);
         return;
-      } catch (err) {
-        // fallback
+      }
+      if (playerRef.current && typeof playerRef.current.seekTo === 'function') {
+        try {
+          playerRef.current.seekTo(0, true);
+          setCurrentTime(0);
+          return;
+        } catch (err) {
+          // fallback
+        }
       }
     }
     const currentIndex = playlist.findIndex((t) => t.id === currentTrack.id);
     const prevIndex = (currentIndex - 1 + playlist.length) % playlist.length;
     onTrackChange(playlist[prevIndex]);
-  }, [currentTrack, playlist, currentTime, onTrackChange]);
+  }, [currentTrack, playlist, currentTime, isSunoTrack, onTrackChange]);
+
+  // Handle Suno Track Audio loading & synchronization
+  useEffect(() => {
+    if (!currentTrack) return;
+
+    if (isSunoTrack) {
+      // Pause YouTube player if running
+      if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
+        try {
+          playerRef.current.pauseVideo();
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      if (audioRef.current) {
+        audioRef.current.src = currentTrack.audioUrl ? encodeURI(currentTrack.audioUrl) : '';
+        audioRef.current.load();
+        setCurrentTime(0);
+        setDuration(currentTrack.durationSeconds || 180);
+        if (isPlaying) {
+          audioRef.current.play().catch((err) => {
+            console.warn('Audio auto-play restricted by browser:', err);
+          });
+        }
+      }
+      return;
+    }
+
+    // If it's a YouTube track, pause HTML5 audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+  }, [currentTrack?.id, isSunoTrack]);
 
   // Initialize YouTube Iframe API
   useEffect(() => {
@@ -132,9 +207,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
   }, []);
 
-  // Initialize or load video when currentTrack changes
+  // Initialize or load YouTube video when currentTrack changes (for YouTube tracks only)
   useEffect(() => {
-    if (!currentTrack) return;
+    if (!currentTrack || isSunoTrack) return;
 
     // If player is already initialized and ready
     if (playerRef.current && isReadyRef.current) {
@@ -239,10 +314,22 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     };
 
     setupPlayer();
-  }, [currentTrack?.id]);
+  }, [currentTrack?.id, isSunoTrack]);
 
   // Sync playback state when isPlaying prop changes from parent
   useEffect(() => {
+    if (isSunoTrack) {
+      if (!audioRef.current) return;
+      if (isPlaying) {
+        audioRef.current.play().catch((err) => {
+          console.warn('Audio play failed:', err);
+        });
+      } else {
+        audioRef.current.pause();
+      }
+      return;
+    }
+
     if (!isReadyRef.current || !playerRef.current) return;
     try {
       if (isPlaying && typeof playerRef.current.playVideo === 'function') {
@@ -253,12 +340,32 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     } catch (e) {
       console.warn('Error syncing playback state:', e);
     }
-  }, [isPlaying]);
+  }, [isPlaying, isSunoTrack]);
 
-  // Track progress polling
+  // Track progress polling & fallback timer
   useEffect(() => {
     if (isPlaying) {
       timerRef.current = setInterval(() => {
+        if (isSunoTrack) {
+          if (audioRef.current && !audioRef.current.paused) {
+            const curr = audioRef.current.currentTime;
+            if (curr !== undefined && !isNaN(curr)) setCurrentTime(curr);
+            const dur = audioRef.current.duration;
+            if (dur && !isNaN(dur) && dur > 0) setDuration(dur);
+          } else {
+            // Smooth simulated fallback if audio stream is restricted
+            setCurrentTime((prev) => {
+              const maxDur = duration || currentTrack?.durationSeconds || 180;
+              if (prev >= maxDur) {
+                handleNext();
+                return 0;
+              }
+              return prev + 1;
+            });
+          }
+          return;
+        }
+
         if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
           try {
             const curr = playerRef.current.getCurrentTime();
@@ -276,7 +383,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       clearInterval(timerRef.current);
     }
     return () => clearInterval(timerRef.current);
-  }, [isPlaying]);
+  }, [isPlaying, isSunoTrack, duration, currentTrack?.durationSeconds, handleNext]);
 
   // Clean up player on unmount
   useEffect(() => {
@@ -291,11 +398,31 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       }
       playerRef.current = null;
       isReadyRef.current = false;
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
     };
   }, []);
 
   // Toggle Play / Pause
   const togglePlayPause = () => {
+    if (isSunoTrack) {
+      if (!audioRef.current) {
+        setIsPlaying(!isPlaying);
+        return;
+      }
+      if (isPlaying) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        audioRef.current.play().catch((err) => {
+          console.warn('Audio play error:', err);
+        });
+        setIsPlaying(true);
+      }
+      return;
+    }
+
     if (!playerRef.current || !isReadyRef.current) {
       setIsPlaying(!isPlaying);
       return;
@@ -322,6 +449,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const targetTime = parseFloat(e.target.value);
     setCurrentTime(targetTime);
+    if (isSunoTrack && audioRef.current) {
+      audioRef.current.currentTime = targetTime;
+      return;
+    }
     if (playerRef.current && typeof playerRef.current.seekTo === 'function') {
       try {
         playerRef.current.seekTo(targetTime, true);
@@ -335,6 +466,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVol = parseInt(e.target.value, 10);
     setVolume(newVol);
+    if (isSunoTrack && audioRef.current) {
+      audioRef.current.volume = isMuted ? 0 : newVol / 100;
+      return;
+    }
     if (playerRef.current && typeof playerRef.current.setVolume === 'function') {
       try {
         playerRef.current.setVolume(newVol);
@@ -353,6 +488,12 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   // Toggle Mute
   const toggleMute = () => {
+    if (isSunoTrack && audioRef.current) {
+      const nextMuted = !isMuted;
+      setIsMuted(nextMuted);
+      audioRef.current.muted = nextMuted;
+      return;
+    }
     if (!playerRef.current) return;
     try {
       if (isMuted) {
@@ -400,10 +541,51 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             </button>
           </div>
           <div className="flex-1 w-full h-full relative">
-            <div id={containerId} className="w-full h-full" />
+            {isSunoTrack ? (
+              currentTrack.videoUrl ? (
+                <video
+                  src={encodeURI(currentTrack.videoUrl)}
+                  controls
+                  autoPlay
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <iframe
+                  src={encodeURI(currentTrack.embedUrl || currentTrack.youtubeUrl || '')}
+                  title={`Suno Embed - ${currentTrack.title}`}
+                  className="w-full h-full border-0"
+                  allow="autoplay"
+                />
+              )
+            ) : null}
+            <div id={containerId} className={`w-full h-full ${isSunoTrack ? 'hidden' : ''}`} />
           </div>
         </div>
       </div>
+
+      {/* HTML5 Audio Element for Suno stream playback */}
+      <audio
+        ref={audioRef}
+        onTimeUpdate={(e) => {
+          const t = e.currentTarget.currentTime;
+          if (!isNaN(t)) setCurrentTime(t);
+        }}
+        onLoadedMetadata={(e) => {
+          const d = e.currentTarget.duration;
+          if (d && !isNaN(d) && d > 0) setDuration(d);
+        }}
+        onEnded={() => {
+          if (isRepeat) {
+            if (audioRef.current) {
+              audioRef.current.currentTime = 0;
+              audioRef.current.play().catch(() => {});
+            }
+          } else {
+            handleNext();
+          }
+        }}
+        preload="auto"
+      />
 
       {/* Floating Bottom Audio Player */}
       <div
@@ -589,6 +771,27 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 </div>
               </div>
 
+              {/* Playlist / Queue Drawer Toggle */}
+              <button
+                id="player-queue-modal-btn"
+                onClick={() => setShowQueueModal(!showQueueModal)}
+                className={`p-2 rounded-full border text-xs font-semibold inline-flex items-center gap-1.5 transition-all ${
+                  showQueueModal
+                    ? 'bg-cyan-500 border-cyan-400 text-black font-bold shadow-lg shadow-cyan-500/25'
+                    : isDarkMode
+                    ? 'bg-white/5 border-white/10 text-white/80 hover:text-cyan-400 hover:bg-white/10'
+                    : 'bg-neutral-100 border-neutral-300 text-neutral-700 hover:bg-neutral-200'
+                }`}
+                title="Playlist Queue & Up Next"
+                aria-label="Toggle Playlist Queue"
+              >
+                <ListMusic className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="hidden sm:inline text-[11px] uppercase tracking-wider">Queue</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-cyan-400/20 text-cyan-300 font-mono">
+                  {displayedQueueTracks.length}
+                </span>
+              </button>
+
               {/* Watch Video Mode Button */}
               <button
                 id="player-video-modal-btn"
@@ -626,6 +829,154 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Floating Playlist Queue Drawer / Modal */}
+      {showQueueModal && (
+        <div
+          id="player-queue-drawer"
+          className={`fixed bottom-24 sm:bottom-28 right-2 sm:right-6 w-[calc(100vw-16px)] sm:w-96 md:w-[420px] max-h-[70vh] z-50 rounded-2xl border shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden transition-all ${
+            isDarkMode
+              ? 'bg-neutral-950/95 border-white/15 text-white shadow-cyan-950/40'
+              : 'bg-white/95 border-neutral-200 text-neutral-900 shadow-xl'
+          }`}
+        >
+          {/* Queue Header */}
+          <div className="p-3.5 sm:p-4 border-b border-white/10 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ListMusic className="w-4 h-4 text-cyan-400" />
+              <h3 className="font-bold text-sm tracking-wide">Playlist Queue</h3>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-400 font-semibold">
+                {displayedQueueTracks.length} Songs
+              </span>
+            </div>
+            <button
+              onClick={() => setShowQueueModal(false)}
+              className={`p-1.5 rounded-full hover:bg-white/10 transition-colors ${
+                isDarkMode ? 'text-white/60 hover:text-white' : 'text-neutral-500 hover:text-neutral-900'
+              }`}
+              aria-label="Close Queue"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Playlist Selection Tabs in Queue */}
+          <div className="p-2 border-b border-white/10 flex items-center gap-1.5 bg-black/20 text-xs">
+            <button
+              onClick={() => setQueueTab('current')}
+              className={`flex-1 py-1.5 px-2 rounded-lg font-semibold text-center transition-all ${
+                queueTab === 'current'
+                  ? 'bg-cyan-500 text-black font-bold shadow-sm'
+                  : isDarkMode
+                  ? 'text-white/70 hover:bg-white/5'
+                  : 'text-neutral-600 hover:bg-neutral-100'
+              }`}
+            >
+              Current ({playlist.length})
+            </button>
+            {allPlaylists?.youtube && (
+              <button
+                onClick={() => {
+                  setQueueTab('youtube');
+                  if (onSwitchPlaylist) onSwitchPlaylist('youtube');
+                }}
+                className={`flex-1 py-1.5 px-2 rounded-lg font-semibold flex items-center justify-center gap-1 transition-all ${
+                  queueTab === 'youtube'
+                    ? 'bg-cyan-500 text-black font-bold shadow-sm'
+                    : isDarkMode
+                    ? 'text-white/70 hover:bg-white/5'
+                    : 'text-neutral-600 hover:bg-neutral-100'
+                }`}
+              >
+                <Disc className="w-3 h-3 text-red-500" />
+                <span>YouTube ({allPlaylists.youtube.length})</span>
+              </button>
+            )}
+            {allPlaylists?.suno && (
+              <button
+                onClick={() => {
+                  setQueueTab('suno');
+                  if (onSwitchPlaylist) onSwitchPlaylist('suno');
+                }}
+                className={`flex-1 py-1.5 px-2 rounded-lg font-semibold flex items-center justify-center gap-1 transition-all ${
+                  queueTab === 'suno'
+                    ? 'bg-cyan-500 text-black font-bold shadow-sm'
+                    : isDarkMode
+                    ? 'text-white/70 hover:bg-white/5'
+                    : 'text-neutral-600 hover:bg-neutral-100'
+                }`}
+              >
+                <Sparkles className="w-3 h-3 text-cyan-400" />
+                <span>Suno ({allPlaylists.suno.length})</span>
+              </button>
+            )}
+          </div>
+
+          {/* Track List */}
+          <div className="flex-1 overflow-y-auto p-2 space-y-1 max-h-[50vh] divide-y divide-white/5">
+            {displayedQueueTracks.map((track, i) => {
+              const isCurrent = currentTrack?.id === track.id;
+              return (
+                <div
+                  key={`${track.id}-${i}`}
+                  onClick={() => {
+                    onTrackChange(track);
+                    setIsPlaying(true);
+                  }}
+                  className={`p-2 rounded-xl flex items-center justify-between gap-3 cursor-pointer transition-all ${
+                    isCurrent
+                      ? isDarkMode
+                        ? 'bg-cyan-500/20 border border-cyan-400/40 text-white shadow-sm'
+                        : 'bg-cyan-50 border border-cyan-300 text-cyan-950 font-medium'
+                      : isDarkMode
+                      ? 'hover:bg-white/5 text-white/80 hover:text-white'
+                      : 'hover:bg-neutral-100 text-neutral-800'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="font-mono text-[10px] opacity-40 w-4 text-center shrink-0">
+                      {isCurrent ? (
+                        <span className="text-cyan-400 font-bold">▶</span>
+                      ) : (
+                        (track.index || i + 1).toString().padStart(2, '0')
+                      )}
+                    </span>
+                    <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 border border-white/10 bg-neutral-900">
+                      <img
+                        src={track.thumbnail}
+                        alt={track.title}
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold truncate leading-tight">
+                        {track.title}
+                      </p>
+                      <p className={`text-[10px] truncate ${isDarkMode ? 'text-white/50' : 'text-neutral-500'}`}>
+                        {track.artist}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {isCurrent && isPlaying && (
+                      <div className="flex items-end gap-0.5 h-2.5">
+                        <span className="w-0.5 bg-cyan-400 animate-eq-1" />
+                        <span className="w-0.5 bg-cyan-300 animate-eq-2" />
+                        <span className="w-0.5 bg-purple-400 animate-eq-3" />
+                      </div>
+                    )}
+                    <span className="font-mono text-[10px] opacity-60">
+                      {track.duration}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
     </>
   );

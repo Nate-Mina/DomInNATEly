@@ -3,7 +3,7 @@ import { SunoTrack, SunoPlaylistInfo } from "../types";
 export const SUNO_PLAYLIST_INFO: SunoPlaylistInfo = {
   id: "26af3597-73d4-491c-a9b3-aac9a0d55c82",
   name: "DomInNATEly Top Hits",
-  description: "Thanks for Listening, My TikTok Is @dom_i_nater",
+  description: "Official Suno AI curated collection of 20 high-energy rock anthems, trap crossovers, introspective ballads, and spoken-word odysseys. TikTok: @dom_i_nater",
   cover: "https://cdn2.suno.ai/image_large_ba1c3c00-6547-4e96-afe1-1566dca7b876.jpeg",
   user_display_name: "Nate M. AKA  (@DomInNATEly)",
   user_handle: "dominnately",
@@ -27,7 +27,7 @@ export const SUNO_TRACKS: SunoTrack[] = [
     sunoUrl: "https://suno.com/song/0028ed1b-8e30-4fb7-bda5-13e933cec42f",
     duration: 387.9,
     durationFormatted: "6:27",
-    tags: [],
+    tags: ["alt rock", "rock duet", "male female vocals", "acoustic to heavy guitar", "confessional emo rock"],
     lyrics: `**[Male Vocals – Verse 1]**
 You came in sweet
 All soft at the seams
@@ -538,7 +538,7 @@ There's nothing but shadows and smoke in the air`,
     sunoUrl: "https://suno.com/song/ae67baac-578e-4b4b-96ad-49c06909fc7b",
     duration: 225.0,
     durationFormatted: "3:45",
-    tags: [],
+    tags: ["hard rock", "alt rock", "heavy guitars", "breakup anthem", "passionate vocal"],
     lyrics: `[Verse 1]
 
 Hey, how does it feel when you run your script?
@@ -859,7 +859,7 @@ we’ll be alright`,
     sunoUrl: "https://suno.com/song/ca0198c0-3507-4fc9-a576-9445317c1e14",
     duration: 190.4,
     durationFormatted: "3:10",
-    tags: [],
+    tags: ["pop punk", "alt pop", "duet", "male female vocals", "energetic"],
     lyrics: `[singer A (female Voice) ]
 I'm a bad bitch with bubblegum flair
 Chewing through the chaos I don’t even care

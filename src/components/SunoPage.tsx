@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { SUNO_TRACKS, SUNO_PLAYLIST_INFO } from '../data/sunoData';
 import { SunoTrack } from '../types';
 import { SunoTrackCard } from './SunoTrackCard';
-import { SunoAudioPlayer } from './SunoAudioPlayer';
 import { SunoLyricsModal } from './SunoLyricsModal';
 import { SunoEmbedModal } from './SunoEmbedModal';
 import { SunoShareModal } from './SunoShareModal';
@@ -31,6 +30,7 @@ interface SunoPageProps {
   onPlayTrack: (track: SunoTrack) => void;
   onTogglePlayPause: () => void;
   onTrackChange: (track: SunoTrack) => void;
+  onSwitchToYouTube?: () => void;
 }
 
 export const SunoPage: React.FC<SunoPageProps> = ({
@@ -40,6 +40,7 @@ export const SunoPage: React.FC<SunoPageProps> = ({
   onPlayTrack,
   onTogglePlayPause,
   onTrackChange,
+  onSwitchToYouTube,
 }) => {
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -261,6 +262,21 @@ export const SunoPage: React.FC<SunoPageProps> = ({
                 <span>Open on Suno</span>
                 <ExternalLink className="w-3.5 h-3.5 opacity-70" />
               </a>
+
+              {onSwitchToYouTube && (
+                <button
+                  id="switch-to-youtube-hero-btn"
+                  onClick={onSwitchToYouTube}
+                  className={`px-4 py-2.5 rounded-full border text-sm font-semibold flex items-center gap-1.5 transition-all ${
+                    isDarkMode
+                      ? 'bg-white/5 border-white/10 text-red-400 hover:bg-white/10'
+                      : 'bg-neutral-100 border-neutral-300 text-red-700 hover:bg-neutral-200'
+                  }`}
+                >
+                  <Disc className="w-4 h-4 text-red-500" />
+                  <span>Switch to YouTube Gallery (18)</span>
+                </button>
+              )}
 
               <button
                 onClick={() => setShareTrack(null)}
@@ -540,25 +556,6 @@ export const SunoPage: React.FC<SunoPageProps> = ({
             Reset Filters
           </button>
         </div>
-      )}
-
-      {/* Floating Bottom Audio Player */}
-      {currentTrack && (
-        <SunoAudioPlayer
-          currentTrack={currentTrack}
-          playlist={filteredTracks.length > 0 ? filteredTracks : SUNO_TRACKS}
-          onTrackChange={onTrackChange}
-          onOpenShare={(t) => setShareTrack(t)}
-          onOpenLyrics={(t) => setLyricsTrack(t)}
-          onOpenEmbed={(t) => setEmbedTrack(t)}
-          isDarkMode={isDarkMode}
-          isPlaying={isPlaying}
-          setIsPlaying={(p) => {
-            if (p !== isPlaying) {
-              onTogglePlayPause();
-            }
-          }}
-        />
       )}
 
       {/* Modals */}

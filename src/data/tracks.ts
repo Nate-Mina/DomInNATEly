@@ -238,8 +238,34 @@ export const TRACKS: Track[] = [
     tags: ['Cyber Punk', 'Short & Sharp', 'Outro'],
     description: 'Punchy electro-rock synthesis bridging digital circuit boards and raw organic guitar licks.',
     featuredLyrics: 'Binary signals pulsing through speaker wire at lightning velocity.'
+  },
+  {
+    id: 'fBBwdLTJMVE',
+    title: 'I Want You Back, But I Hate that I Do',
+    artist: 'DomInNATEly',
+    duration: '3:19',
+    durationSeconds: 199,
+    index: 18,
+    thumbnail: 'https://i.ytimg.com/vi/fBBwdLTJMVE/hqdefault.jpg',
+    youtubeUrl: 'https://www.youtube.com/@DomInNATEly',
+    category: 'rock',
+    tags: ['Alt Rock', 'Breakup Anthem', 'Raw Guitars', 'Single'],
+    description: 'A fiery, conflicted rock single confronting the paradox of missing an abusive ex while hating the manipulation and emotional toll.',
+    featuredLyrics: 'I want you back (but I hate that I do) / Every road I take loops back to you / You wore kindness like a loaded trick / And you loved it best when I came back...'
   }
 ];
 
-export const PLAYLIST_URL = 'https://youtu.be/MPLgPPy9Sjs?si=C7TK4fLAwcrYkgnN';
+export const PLAYLIST_URL = 'https://www.youtube.com/@DomInNATEly/playlists';
 export const YOUTUBE_CHANNEL_URL = 'https://www.youtube.com/@DomInNATEly';
+
+export const YOUTUBE_PLAYLIST_INFO = {
+  id: 'PL-dominnately-tophits',
+  name: 'DomInNATEly Top Hits',
+  description: 'Official YouTube audio and video catalogue by DomInNATEly / Dom-I-NATE featuring heavy guitar riffs, melodic ballads, and conceptual alt-rock.',
+  channel: 'DomInNATEly',
+  channelUrl: 'https://www.youtube.com/@DomInNATEly',
+  playlistUrl: 'https://www.youtube.com/@DomInNATEly/playlists',
+  totalTracks: 18,
+  totalDurationFormatted: '1 hr 7 min',
+  cover: 'https://i.ytimg.com/vi/MPLgPPy9Sjs/hqdefault.jpg',
+};

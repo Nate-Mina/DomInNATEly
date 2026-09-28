@@ -10,6 +10,7 @@ interface SortingAndFilterProps {
   selectedCategory: CategoryFilter;
   onCategoryChange: (cat: CategoryFilter) => void;
   totalResults: number;
+  totalTracks?: number;
   isDarkMode: boolean;
 }
 
@@ -21,6 +22,7 @@ export const SortingAndFilter: React.FC<SortingAndFilterProps> = ({
   selectedCategory,
   onCategoryChange,
   totalResults,
+  totalTracks = 18,
   isDarkMode,
 }) => {
   const categories: { id: CategoryFilter; label: string }[] = [
@@ -32,9 +34,11 @@ export const SortingAndFilter: React.FC<SortingAndFilterProps> = ({
     { id: 'alt', label: 'Alt / Concept' },
   ];
 
+  const maxTrackNumber = totalTracks.toString().padStart(2, '0');
+
   const sortOptions: { id: SortField; label: string }[] = [
-    { id: 'playlist', label: 'Playlist Order (#01 - #17)' },
-    { id: 'newest', label: 'Reverse Order (#17 - #01)' },
+    { id: 'playlist', label: `Playlist Order (#01 - #${maxTrackNumber})` },
+    { id: 'newest', label: `Reverse Order (#${maxTrackNumber} - #01)` },
     { id: 'duration-desc', label: 'Duration (Longest First)' },
     { id: 'duration-asc', label: 'Duration (Shortest First)' },
     { id: 'title-asc', label: 'Title (A → Z)' },
