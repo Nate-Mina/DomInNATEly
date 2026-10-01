@@ -52,6 +52,12 @@ export const SunoPage: React.FC<SunoPageProps> = ({
   const [lyricsTrack, setLyricsTrack] = useState<SunoTrack | null>(null);
   const [embedTrack, setEmbedTrack] = useState<SunoTrack | null>(null);
   const [shareTrack, setShareTrack] = useState<SunoTrack | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+
+  const openShareModal = (track: SunoTrack | null) => {
+    setShareTrack(track);
+    setIsShareModalOpen(true);
+  };
 
   // Genre tags extracted from tracks
   const availableTags = useMemo(() => {
@@ -279,7 +285,7 @@ export const SunoPage: React.FC<SunoPageProps> = ({
               )}
 
               <button
-                onClick={() => setShareTrack(null)}
+                onClick={() => openShareModal(null)}
                 className={`p-2.5 rounded-full border transition-all ${
                   isDarkMode
                     ? 'bg-white/5 border-white/10 text-white/80 hover:text-cyan-400 hover:border-cyan-400/40'
@@ -411,7 +417,7 @@ export const SunoPage: React.FC<SunoPageProps> = ({
                 onPlay={(t) => onPlayTrack(t)}
                 onOpenLyrics={(t) => setLyricsTrack(t)}
                 onOpenEmbed={(t) => setEmbedTrack(t)}
-                onOpenShare={(t) => setShareTrack(t)}
+                onOpenShare={(t) => openShareModal(t)}
                 isDarkMode={isDarkMode}
               />
             ))}
@@ -528,7 +534,7 @@ export const SunoPage: React.FC<SunoPageProps> = ({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setShareTrack(track);
+                        openShareModal(track);
                       }}
                       className="p-1.5 rounded-lg border border-white/10 hover:border-cyan-400 hover:text-cyan-400 transition-colors"
                       title="Share"
@@ -576,8 +582,11 @@ export const SunoPage: React.FC<SunoPageProps> = ({
 
       <SunoShareModal
         track={shareTrack}
-        isOpen={Boolean(shareTrack || shareTrack === null && false)} // handles both
-        onClose={() => setShareTrack(null)}
+        isOpen={isShareModalOpen}
+        onClose={() => {
+          setIsShareModalOpen(false);
+          setShareTrack(null);
+        }}
         isDarkMode={isDarkMode}
       />
     </div>
