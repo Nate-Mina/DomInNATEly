@@ -16,16 +16,17 @@ import {
   ListMusic,
   Disc,
   Sparkles,
+  FileText,
   X
 } from 'lucide-react';
 import { Track } from '../types';
-import { playerManager } from '../services/playerManager';
 
 interface AudioPlayerProps {
   currentTrack: Track | null;
   playlist: Track[];
   onTrackChange: (track: Track) => void;
   onOpenShare: (track: Track) => void;
+  onOpenLyrics?: (track: Track) => void;
   isDarkMode: boolean;
   isPlaying: boolean;
   setIsPlaying: (playing: boolean) => void;
@@ -35,6 +36,8 @@ interface AudioPlayerProps {
   };
   onSwitchPlaylist?: (playlistType: 'youtube' | 'suno') => void;
   currentPlaylistType?: 'youtube' | 'suno';
+  disableInternalPlayback?: boolean;
+  onVolumeChange?: (volume: number, isMuted: boolean) => void;
 }
 
 declare global {
@@ -49,12 +52,15 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   playlist,
   onTrackChange,
   onOpenShare,
+  onOpenLyrics,
   isDarkMode,
   isPlaying,
   setIsPlaying,
   allPlaylists,
   onSwitchPlaylist,
   currentPlaylistType = 'youtube',
+  disableInternalPlayback = false,
+  onVolumeChange,
 }) => {
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
@@ -79,41 +85,16 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   const playerRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const timerRef = useRef<any>(null);
+  const setupTimeoutRef = useRef<any>(null);
+  const ytContainerRef = useRef<HTMLDivElement | null>(null);
   const isReadyRef = useRef<boolean>(false);
   const pendingTrackIdRef = useRef<string | null>(null);
   const containerId = 'youtube-player-container';
 
-  // Check if current track is a Suno AI track (plays through HTML5 audio stream)
+  // Check if current track is a Suno AI track (plays through HTML5 audio stream or MP4 video)
   const isSunoTrack = Boolean(currentTrack?.audioUrl || currentTrack?.isSuno);
-
-  // PlayerManager synchronization to prevent simultaneous audio output with any other players
-  useEffect(() => {
-    if (isPlaying) {
-      playerManager.setActivePlayer(isSunoTrack ? 'suno' : 'youtube');
-    }
-  }, [isPlaying, isSunoTrack]);
-
-  useEffect(() => {
-    const unsubscribe = playerManager.subscribe((active) => {
-      if (active === 'suno' && isPlaying && !isSunoTrack) {
-        setIsPlaying(false);
-        if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
-          try {
-            playerRef.current.pauseVideo();
-          } catch (err) {
-            // ignore
-          }
-        }
-      } else if (active === 'youtube' && isPlaying && isSunoTrack) {
-        setIsPlaying(false);
-        if (audioRef.current) {
-          audioRef.current.pause();
-        }
-      }
-    });
-    return unsubscribe;
-  }, [isPlaying, isSunoTrack, setIsPlaying]);
 
   // Format seconds to mm:ss
   const formatTime = (secs: number) => {
@@ -164,6 +145,17 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   useEffect(() => {
     if (!currentTrack) return;
 
+    if (disableInternalPlayback) {
+      if (audioRef.current) audioRef.current.pause();
+      if (videoRef.current) videoRef.current.pause();
+      if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
+        try {
+          playerRef.current.pauseVideo();
+        } catch (e) {}
+      }
+      return;
+    }
+
     if (isSunoTrack) {
       // Pause YouTube player if running
       if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
@@ -174,23 +166,37 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         }
       }
 
+      const audioSrc = currentTrack.audioUrl || currentTrack.videoUrl || '';
       if (audioRef.current) {
-        audioRef.current.src = currentTrack.audioUrl ? encodeURI(currentTrack.audioUrl) : '';
+        audioRef.current.src = audioSrc ? encodeURI(audioSrc) : '';
+        audioRef.current.volume = isMuted ? 0 : (volume || 80) / 100;
+        audioRef.current.muted = isMuted;
         audioRef.current.load();
         setCurrentTime(0);
         setDuration(currentTrack.durationSeconds || 180);
         if (isPlaying) {
           audioRef.current.play().catch((err) => {
-            console.warn('Audio auto-play restricted by browser:', err);
+            console.warn('Audio auto-play notice:', err);
           });
+        }
+      }
+
+      if (videoRef.current) {
+        videoRef.current.volume = isMuted ? 0 : (volume || 80) / 100;
+        videoRef.current.muted = isMuted;
+        if (isPlaying) {
+          videoRef.current.play().catch(() => {});
         }
       }
       return;
     }
 
-    // If it's a YouTube track, pause HTML5 audio
+    // If it's a YouTube track, pause HTML5 audio and video
     if (audioRef.current) {
       audioRef.current.pause();
+    }
+    if (videoRef.current) {
+      videoRef.current.pause();
     }
   }, [currentTrack?.id, isSunoTrack]);
 
@@ -209,7 +215,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   // Initialize or load YouTube video when currentTrack changes (for YouTube tracks only)
   useEffect(() => {
-    if (!currentTrack || isSunoTrack) return;
+    if (!currentTrack || isSunoTrack || disableInternalPlayback) return;
 
     // If player is already initialized and ready
     if (playerRef.current && isReadyRef.current) {
@@ -234,21 +240,44 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     // Otherwise queue this track as pending and initialize player
     pendingTrackIdRef.current = currentTrack.id;
 
+    if (setupTimeoutRef.current) {
+      clearTimeout(setupTimeoutRef.current);
+      setupTimeoutRef.current = null;
+    }
+
+    let retryCount = 0;
+    const maxRetries = 50; // up to 5 seconds
+
     const setupPlayer = () => {
-      const containerElem = document.getElementById(containerId);
+      const containerElem = ytContainerRef.current || document.getElementById(containerId);
       if (!containerElem) {
-        setTimeout(setupPlayer, 100);
+        if (retryCount++ < maxRetries) {
+          setupTimeoutRef.current = setTimeout(setupPlayer, 100);
+        }
         return;
       }
 
       if (!window.YT || !window.YT.Player) {
-        setTimeout(setupPlayer, 100);
+        if (retryCount++ < maxRetries) {
+          setupTimeoutRef.current = setTimeout(setupPlayer, 100);
+        }
         return;
       }
 
       if (!playerRef.current) {
         try {
-          playerRef.current = new window.YT.Player(containerId, {
+          // Prepare clean inner slot so YouTube API replaces only the inner slot and not our ref container
+          containerElem.innerHTML = '';
+          const innerSlot = document.createElement('div');
+          innerSlot.style.width = '100%';
+          innerSlot.style.height = '100%';
+          containerElem.appendChild(innerSlot);
+
+          const safeOrigin = typeof window !== 'undefined' && window.location.origin && window.location.origin !== 'null'
+            ? window.location.origin
+            : undefined;
+
+          playerRef.current = new window.YT.Player(innerSlot, {
             height: '100%',
             width: '100%',
             videoId: currentTrack.id,
@@ -257,25 +286,32 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
               controls: 1,
               modestbranding: 1,
               rel: 0,
-              origin: window.location.origin,
+              enablejsapi: 1,
+              ...(safeOrigin ? { origin: safeOrigin } : {}),
             },
             events: {
               onReady: (event: any) => {
                 isReadyRef.current = true;
-                if (typeof event.target.setVolume === 'function') {
-                  event.target.setVolume(volume);
+                if (typeof event.target?.setVolume === 'function') {
+                  try {
+                    event.target.setVolume(volume);
+                  } catch (e) {}
                 }
                 // Check if another track was requested while player was initializing
                 if (pendingTrackIdRef.current && pendingTrackIdRef.current !== currentTrack.id) {
                   const targetId = pendingTrackIdRef.current;
                   pendingTrackIdRef.current = null;
-                  if (typeof event.target.loadVideoById === 'function') {
-                    event.target.loadVideoById(targetId);
-                    setIsPlaying(true);
+                  if (typeof event.target?.loadVideoById === 'function') {
+                    try {
+                      event.target.loadVideoById(targetId);
+                      setIsPlaying(true);
+                    } catch (e) {}
                   }
                 } else if (isPlaying) {
-                  if (typeof event.target.playVideo === 'function') {
-                    event.target.playVideo();
+                  if (typeof event.target?.playVideo === 'function') {
+                    try {
+                      event.target.playVideo();
+                    } catch (e) {}
                   }
                 }
               },
@@ -284,18 +320,24 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 if (event.data === 1) {
                   setIsPlaying(true);
                   if (playerRef.current && typeof playerRef.current.getDuration === 'function') {
-                    const dur = playerRef.current.getDuration();
-                    if (dur && dur > 0) setDuration(dur);
+                    try {
+                      const dur = playerRef.current.getDuration();
+                      if (dur && dur > 0) setDuration(dur);
+                    } catch (e) {}
                   }
                 } else if (event.data === 2) {
                   setIsPlaying(false);
                 } else if (event.data === 0) {
                   if (isRepeat) {
                     if (playerRef.current && typeof playerRef.current.seekTo === 'function') {
-                      playerRef.current.seekTo(0);
+                      try {
+                        playerRef.current.seekTo(0);
+                      } catch (e) {}
                     }
                     if (playerRef.current && typeof playerRef.current.playVideo === 'function') {
-                      playerRef.current.playVideo();
+                      try {
+                        playerRef.current.playVideo();
+                      } catch (e) {}
                     }
                   } else {
                     handleNext();
@@ -303,7 +345,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 }
               },
               onError: (err: any) => {
-                console.warn('YouTube Player event error:', err);
+                console.warn('YouTube Player event notice:', err);
               },
             },
           });
@@ -314,15 +356,33 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     };
 
     setupPlayer();
+
+    return () => {
+      if (setupTimeoutRef.current) {
+        clearTimeout(setupTimeoutRef.current);
+        setupTimeoutRef.current = null;
+      }
+    };
   }, [currentTrack?.id, isSunoTrack]);
 
   // Sync playback state when isPlaying prop changes from parent
   useEffect(() => {
+    if (disableInternalPlayback) {
+      if (audioRef.current) audioRef.current.pause();
+      if (videoRef.current) videoRef.current.pause();
+      if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
+        try {
+          playerRef.current.pauseVideo();
+        } catch (e) {}
+      }
+      return;
+    }
+
     if (isSunoTrack) {
       if (!audioRef.current) return;
       if (isPlaying) {
         audioRef.current.play().catch((err) => {
-          console.warn('Audio play failed:', err);
+          console.warn('Audio play notice:', err);
         });
       } else {
         audioRef.current.pause();
@@ -340,14 +400,19 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     } catch (e) {
       console.warn('Error syncing playback state:', e);
     }
-  }, [isPlaying, isSunoTrack]);
+  }, [isPlaying, isSunoTrack, disableInternalPlayback]);
 
   // Track progress polling & fallback timer
   useEffect(() => {
     if (isPlaying) {
       timerRef.current = setInterval(() => {
         if (isSunoTrack) {
-          if (audioRef.current && !audioRef.current.paused) {
+          if (videoRef.current && !videoRef.current.paused) {
+            const curr = videoRef.current.currentTime;
+            if (curr !== undefined && !isNaN(curr)) setCurrentTime(curr);
+            const dur = videoRef.current.duration;
+            if (dur && !isNaN(dur) && dur > 0) setDuration(dur);
+          } else if (audioRef.current && !audioRef.current.paused) {
             const curr = audioRef.current.currentTime;
             if (curr !== undefined && !isNaN(curr)) setCurrentTime(curr);
             const dur = audioRef.current.duration;
@@ -401,11 +466,48 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       if (audioRef.current) {
         audioRef.current.pause();
       }
+      if (videoRef.current) {
+        videoRef.current.pause();
+      }
     };
   }, []);
 
+  // Next Track in playlist (sequential navigation)
+  const goToNextTrack = useCallback(() => {
+    if (playlist.length === 0) return;
+    if (!currentTrack) {
+      onTrackChange(playlist[0]);
+      return;
+    }
+    const currentIndex = playlist.findIndex((t) => t.id === currentTrack.id);
+    const nextIndex = currentIndex === -1 || currentIndex >= playlist.length - 1 ? 0 : currentIndex + 1;
+    onTrackChange(playlist[nextIndex]);
+  }, [currentTrack, playlist, onTrackChange]);
+
+  // Previous Track in playlist (sequential navigation)
+  const goToPreviousTrack = useCallback(() => {
+    if (playlist.length === 0) return;
+    if (!currentTrack) {
+      onTrackChange(playlist[playlist.length - 1]);
+      return;
+    }
+    const currentIndex = playlist.findIndex((t) => t.id === currentTrack.id);
+    const prevIndex = currentIndex <= 0 ? playlist.length - 1 : currentIndex - 1;
+    onTrackChange(playlist[prevIndex]);
+  }, [currentTrack, playlist, onTrackChange]);
+
   // Toggle Play / Pause
-  const togglePlayPause = () => {
+  const togglePlayPause = useCallback(() => {
+    if (!currentTrack && playlist.length > 0) {
+      onTrackChange(playlist[0]);
+      return;
+    }
+
+    if (disableInternalPlayback) {
+      setIsPlaying(!isPlaying);
+      return;
+    }
+
     if (isSunoTrack) {
       if (!audioRef.current) {
         setIsPlaying(!isPlaying);
@@ -443,14 +545,15 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       console.warn('Error toggling playback:', e);
       setIsPlaying(!isPlaying);
     }
-  };
+  }, [currentTrack, playlist, isSunoTrack, isPlaying, setIsPlaying, onTrackChange]);
 
   // Seek
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const targetTime = parseFloat(e.target.value);
     setCurrentTime(targetTime);
-    if (isSunoTrack && audioRef.current) {
-      audioRef.current.currentTime = targetTime;
+    if (isSunoTrack) {
+      if (audioRef.current) audioRef.current.currentTime = targetTime;
+      if (videoRef.current) videoRef.current.currentTime = targetTime;
       return;
     }
     if (playerRef.current && typeof playerRef.current.seekTo === 'function') {
@@ -466,8 +569,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newVol = parseInt(e.target.value, 10);
     setVolume(newVol);
-    if (isSunoTrack && audioRef.current) {
-      audioRef.current.volume = isMuted ? 0 : newVol / 100;
+    if (isSunoTrack) {
+      if (audioRef.current) audioRef.current.volume = isMuted ? 0 : newVol / 100;
+      if (videoRef.current) videoRef.current.volume = isMuted ? 0 : newVol / 100;
       return;
     }
     if (playerRef.current && typeof playerRef.current.setVolume === 'function') {
@@ -488,10 +592,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
 
   // Toggle Mute
   const toggleMute = () => {
-    if (isSunoTrack && audioRef.current) {
+    if (isSunoTrack) {
       const nextMuted = !isMuted;
       setIsMuted(nextMuted);
-      audioRef.current.muted = nextMuted;
+      if (audioRef.current) audioRef.current.muted = nextMuted;
+      if (videoRef.current) videoRef.current.muted = nextMuted;
       return;
     }
     if (!playerRef.current) return;
@@ -509,14 +614,157 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
   };
 
+  const togglePlayPauseRef = useRef(togglePlayPause);
+  togglePlayPauseRef.current = togglePlayPause;
+
+  const goToNextTrackRef = useRef(goToNextTrack);
+  goToNextTrackRef.current = goToNextTrack;
+
+  const goToPreviousTrackRef = useRef(goToPreviousTrack);
+  goToPreviousTrackRef.current = goToPreviousTrack;
+
+  // Global Keyboard Event Listener: Spacebar for play/pause, Arrow keys for prev/next
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Do not intercept if browser modifier keys (Cmd, Ctrl, Alt) are pressed
+      if (e.altKey || e.ctrlKey || e.metaKey) {
+        return;
+      }
+
+      // Check if user is typing inside an editable field, input, or textarea
+      const target = e.target as HTMLElement | null;
+      if (target) {
+        const tagName = target.tagName ? target.tagName.toUpperCase() : '';
+        const isEditable = target.isContentEditable;
+        const isInput = tagName === 'INPUT';
+        const inputType = isInput ? (target as HTMLInputElement).type.toLowerCase() : '';
+
+        // If typing in search input, text input, textarea, select, or contenteditable
+        if (
+          tagName === 'TEXTAREA' ||
+          tagName === 'SELECT' ||
+          isEditable ||
+          (isInput && !['range', 'button', 'checkbox', 'radio'].includes(inputType))
+        ) {
+          return;
+        }
+
+        // On range sliders (seeker progress bar or volume slider), allow spacebar to play/pause,
+        // but let arrow keys adjust the slider value normally
+        if (isInput && inputType === 'range') {
+          if (
+            e.key === 'ArrowLeft' ||
+            e.key === 'ArrowRight' ||
+            e.key === 'ArrowUp' ||
+            e.key === 'ArrowDown' ||
+            e.code === 'ArrowLeft' ||
+            e.code === 'ArrowRight' ||
+            e.code === 'ArrowUp' ||
+            e.code === 'ArrowDown'
+          ) {
+            return;
+          }
+        }
+      }
+
+      // Spacebar: Play / Pause
+      if (e.key === ' ' || e.code === 'Space' || e.key === 'Spacebar') {
+        e.preventDefault();
+        togglePlayPauseRef.current();
+        return;
+      }
+
+      // Left Arrow / Up Arrow: Navigate to Previous Track in Playlist
+      if (
+        e.key === 'ArrowLeft' ||
+        e.code === 'ArrowLeft' ||
+        e.key === 'Left' ||
+        e.key === 'ArrowUp' ||
+        e.code === 'ArrowUp' ||
+        e.key === 'Up'
+      ) {
+        e.preventDefault();
+        goToPreviousTrackRef.current();
+        return;
+      }
+
+      // Right Arrow / Down Arrow: Navigate to Next Track in Playlist
+      if (
+        e.key === 'ArrowRight' ||
+        e.code === 'ArrowRight' ||
+        e.key === 'Right' ||
+        e.key === 'ArrowDown' ||
+        e.code === 'ArrowDown' ||
+        e.key === 'Down'
+      ) {
+        e.preventDefault();
+        goToNextTrackRef.current();
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   if (!currentTrack) return null;
 
   const currentDuration = duration || currentTrack.durationSeconds || 180;
   const progressPercent = currentDuration > 0 ? (currentTime / currentDuration) * 100 : 0;
 
+  const videoViewportContent = (
+    <div className="w-full h-full relative bg-black flex items-center justify-center overflow-hidden rounded-2xl">
+      {isSunoTrack ? (
+        currentTrack.videoUrl ? (
+          <video
+            ref={videoRef}
+            src={encodeURI(currentTrack.videoUrl)}
+            controls
+            autoPlay
+            playsInline
+            muted={isMuted}
+            className="w-full h-full object-contain bg-black"
+            onTimeUpdate={(e) => {
+              const t = e.currentTarget.currentTime;
+              if (!isNaN(t)) setCurrentTime(t);
+            }}
+            onLoadedMetadata={(e) => {
+              const d = e.currentTarget.duration;
+              if (d && !isNaN(d) && d > 0) setDuration(d);
+            }}
+            onEnded={() => {
+              if (isRepeat) {
+                if (videoRef.current) {
+                  videoRef.current.currentTime = 0;
+                  videoRef.current.play().catch(() => {});
+                }
+              } else {
+                handleNext();
+              }
+            }}
+          />
+        ) : (
+          <iframe
+            src={encodeURI(currentTrack.embedUrl || currentTrack.youtubeUrl || '')}
+            title={`Suno Embed - ${currentTrack.title}`}
+            className="w-full h-full border-0"
+            allow="autoplay"
+          />
+        )
+      ) : null}
+      <div
+        ref={ytContainerRef}
+        id={containerId}
+        className={`w-full h-full min-h-[220px] ${isSunoTrack ? 'hidden' : ''}`}
+      />
+    </div>
+  );
+
   return (
     <>
-      {/* Persistent Video Modal / YouTube IFrame Container */}
+      {/* Floating Video Modal for mobile or when user explicitly opens modal */}
       <div
         className={`fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/85 backdrop-blur-md transition-all duration-300 ${
           showVideoModal
@@ -541,24 +789,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
             </button>
           </div>
           <div className="flex-1 w-full h-full relative">
-            {isSunoTrack ? (
-              currentTrack.videoUrl ? (
-                <video
-                  src={encodeURI(currentTrack.videoUrl)}
-                  controls
-                  autoPlay
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <iframe
-                  src={encodeURI(currentTrack.embedUrl || currentTrack.youtubeUrl || '')}
-                  title={`Suno Embed - ${currentTrack.title}`}
-                  className="w-full h-full border-0"
-                  allow="autoplay"
-                />
-              )
-            ) : null}
-            <div id={containerId} className={`w-full h-full ${isSunoTrack ? 'hidden' : ''}`} />
+            {videoViewportContent}
           </div>
         </div>
       </div>
@@ -566,6 +797,14 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
       {/* HTML5 Audio Element for Suno stream playback */}
       <audio
         ref={audioRef}
+        crossOrigin="anonymous"
+        onError={() => {
+          if (audioRef.current && currentTrack?.videoUrl && audioRef.current.src !== currentTrack.videoUrl) {
+            audioRef.current.src = currentTrack.videoUrl;
+            audioRef.current.load();
+            if (isPlaying) audioRef.current.play().catch(() => {});
+          }
+        }}
         onTimeUpdate={(e) => {
           const t = e.currentTarget.currentTime;
           if (!isNaN(t)) setCurrentTime(t);
@@ -673,11 +912,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 {/* Previous */}
                 <button
                   id="player-prev-btn"
-                  onClick={handlePrevious}
+                  onClick={goToPreviousTrack}
                   className={`p-1.5 rounded-full transition-colors opacity-70 hover:opacity-100 ${
                     isDarkMode ? 'text-white hover:text-cyan-400' : 'text-neutral-700 hover:text-black'
                   }`}
-                  title="Previous Track"
+                  title="Previous Track (←)"
                   aria-label="Previous Track"
                 >
                   <SkipBack className="w-5 h-5 fill-current" />
@@ -688,7 +927,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                   id="player-play-pause-btn"
                   onClick={togglePlayPause}
                   className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white text-black hover:bg-cyan-300 flex items-center justify-center font-bold text-xl shadow-xl hover:scale-105 active:scale-95 transition-all"
-                  title={isPlaying ? 'Pause' : 'Play'}
+                  title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
                   aria-label={isPlaying ? 'Pause' : 'Play'}
                 >
                   {isPlaying ? (
@@ -701,11 +940,11 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 {/* Next */}
                 <button
                   id="player-next-btn"
-                  onClick={handleNext}
+                  onClick={goToNextTrack}
                   className={`p-1.5 rounded-full transition-colors opacity-70 hover:opacity-100 ${
                     isDarkMode ? 'text-white hover:text-cyan-400' : 'text-neutral-700 hover:text-black'
                   }`}
-                  title="Next Track"
+                  title="Next Track (→)"
                   aria-label="Next Track"
                 >
                   <SkipForward className="w-5 h-5 fill-current" />
@@ -729,11 +968,25 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 </button>
               </div>
 
-              {/* Time display */}
+              {/* Time display & keyboard shortcuts hint */}
               <div className="flex items-center gap-2 text-[10px] sm:text-xs font-mono font-bold">
                 <span className="text-cyan-400">{formatTime(currentTime)}</span>
                 <span className="text-white/30">/</span>
                 <span className={isDarkMode ? 'text-white/40' : 'text-neutral-400'}>{formatTime(currentDuration)}</span>
+                <span className="hidden lg:inline-flex items-center gap-1 text-[10px] text-white/40 font-normal ml-2">
+                  <kbd className="px-1 py-0.5 rounded bg-white/10 text-white/70 border border-white/10 text-[9px] font-mono">
+                    Space
+                  </kbd>
+                  <span>Play</span>
+                  <span className="text-white/20">•</span>
+                  <kbd className="px-1 py-0.5 rounded bg-white/10 text-white/70 border border-white/10 text-[9px] font-mono">
+                    ←
+                  </kbd>
+                  <kbd className="px-1 py-0.5 rounded bg-white/10 text-white/70 border border-white/10 text-[9px] font-mono">
+                    →
+                  </kbd>
+                  <span>Tracks</span>
+                </span>
               </div>
             </div>
 
@@ -809,6 +1062,24 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
                 <Tv className="w-3.5 h-3.5 text-cyan-400" />
                 <span className="hidden lg:inline text-[11px] uppercase tracking-wider">Video</span>
               </button>
+
+              {/* View Lyrics Button */}
+              {onOpenLyrics && (
+                <button
+                  id="player-lyrics-btn"
+                  onClick={() => onOpenLyrics(currentTrack)}
+                  className={`p-2 rounded-full border text-xs font-semibold inline-flex items-center gap-1.5 transition-all ${
+                    isDarkMode
+                      ? 'bg-white/5 border-white/10 text-white/80 hover:text-cyan-400 hover:bg-white/10'
+                      : 'bg-neutral-100 border-neutral-300 text-neutral-700 hover:bg-neutral-200'
+                  }`}
+                  title="View Full Lyrics"
+                  aria-label="View Full Song Lyrics"
+                >
+                  <FileText className="w-3.5 h-3.5 text-cyan-400" />
+                  <span className="hidden lg:inline text-[11px] uppercase tracking-wider">Lyrics</span>
+                </button>
+              )}
 
               {/* Quick Share Current Playing Track */}
               <button

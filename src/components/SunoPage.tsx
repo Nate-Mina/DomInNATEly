@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { SUNO_TRACKS, SUNO_PLAYLIST_INFO } from '../data/sunoData';
+import { TRACKS } from '../data/tracks';
 import { SunoTrack } from '../types';
 import { SunoTrackCard } from './SunoTrackCard';
 import { SunoLyricsModal } from './SunoLyricsModal';
@@ -52,12 +53,6 @@ export const SunoPage: React.FC<SunoPageProps> = ({
   const [lyricsTrack, setLyricsTrack] = useState<SunoTrack | null>(null);
   const [embedTrack, setEmbedTrack] = useState<SunoTrack | null>(null);
   const [shareTrack, setShareTrack] = useState<SunoTrack | null>(null);
-  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-
-  const openShareModal = (track: SunoTrack | null) => {
-    setShareTrack(track);
-    setIsShareModalOpen(true);
-  };
 
   // Genre tags extracted from tracks
   const availableTags = useMemo(() => {
@@ -164,7 +159,6 @@ export const SunoPage: React.FC<SunoPageProps> = ({
                 src={SUNO_PLAYLIST_INFO.cover}
                 alt={SUNO_PLAYLIST_INFO.name}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                crossOrigin="anonymous"
               />
             </div>
             <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-cyan-500 text-black font-mono font-bold text-[10px] tracking-wider uppercase shadow-lg shadow-cyan-500/30 flex items-center gap-1.5 whitespace-nowrap">
@@ -280,12 +274,12 @@ export const SunoPage: React.FC<SunoPageProps> = ({
                   }`}
                 >
                   <Disc className="w-4 h-4 text-red-500" />
-                  <span>Switch to YouTube Gallery (18)</span>
+                  <span>Switch to YouTube Gallery ({TRACKS.length})</span>
                 </button>
               )}
 
               <button
-                onClick={() => openShareModal(null)}
+                onClick={() => setShareTrack(null)}
                 className={`p-2.5 rounded-full border transition-all ${
                   isDarkMode
                     ? 'bg-white/5 border-white/10 text-white/80 hover:text-cyan-400 hover:border-cyan-400/40'
@@ -410,14 +404,14 @@ export const SunoPage: React.FC<SunoPageProps> = ({
           >
             {filteredTracks.map((track) => (
               <SunoTrackCard
-                key={track.id}
+                key={`${track.id}-${track.index}`}
                 track={track}
                 isPlaying={isPlaying}
                 isCurrentTrack={currentTrack?.id === track.id}
                 onPlay={(t) => onPlayTrack(t)}
                 onOpenLyrics={(t) => setLyricsTrack(t)}
                 onOpenEmbed={(t) => setEmbedTrack(t)}
-                onOpenShare={(t) => openShareModal(t)}
+                onOpenShare={(t) => setShareTrack(t)}
                 isDarkMode={isDarkMode}
               />
             ))}
@@ -442,7 +436,7 @@ export const SunoPage: React.FC<SunoPageProps> = ({
               const isCurrent = currentTrack?.id === track.id;
               return (
                 <div
-                  key={track.id}
+                  key={`${track.id}-${track.index}`}
                   id={`suno-list-item-${track.id}`}
                   className={`group p-3 sm:p-3.5 rounded-xl border transition-all flex items-center justify-between cursor-pointer ${
                     isCurrent
@@ -475,7 +469,6 @@ export const SunoPage: React.FC<SunoPageProps> = ({
                           src={track.image}
                           alt={track.title}
                           className="w-full h-full object-cover"
-                          crossOrigin="anonymous"
                         />
                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                           <Play className="w-3.5 h-3.5 fill-white text-white" />
@@ -534,7 +527,7 @@ export const SunoPage: React.FC<SunoPageProps> = ({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        openShareModal(track);
+                        setShareTrack(track);
                       }}
                       className="p-1.5 rounded-lg border border-white/10 hover:border-cyan-400 hover:text-cyan-400 transition-colors"
                       title="Share"
@@ -582,11 +575,8 @@ export const SunoPage: React.FC<SunoPageProps> = ({
 
       <SunoShareModal
         track={shareTrack}
-        isOpen={isShareModalOpen}
-        onClose={() => {
-          setIsShareModalOpen(false);
-          setShareTrack(null);
-        }}
+        isOpen={Boolean(shareTrack || shareTrack === null && false)} // handles both
+        onClose={() => setShareTrack(null)}
         isDarkMode={isDarkMode}
       />
     </div>

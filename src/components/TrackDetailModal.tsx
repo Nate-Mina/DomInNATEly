@@ -1,6 +1,8 @@
 import React from 'react';
 import { X, Play, Pause, Youtube, Share2, Clock, Music, Disc } from 'lucide-react';
 import { Track } from '../types';
+import { getTrackLyrics } from '../data/lyrics';
+import { LyricsViewer } from './LyricsViewer';
 
 interface TrackDetailModalProps {
   track: Track | null;
@@ -115,22 +117,20 @@ export const TrackDetailModal: React.FC<TrackDetailModalProps> = ({
             </div>
           )}
 
-          {/* Featured Lyrics */}
-          {track.featuredLyrics && (
-            <div
-              className={`mt-4 p-4 rounded-2xl border ${
-                isDarkMode ? 'bg-white/5 border-white/10' : 'bg-neutral-50 border-neutral-200'
-              }`}
-            >
-              <h4 className="text-xs uppercase font-mono font-bold tracking-wider text-cyan-400 mb-1.5 flex items-center gap-1.5">
-                <Music className="w-3.5 h-3.5" />
-                Featured Lyrics Snippet
-              </h4>
-              <p className="text-sm italic leading-relaxed font-serif opacity-90">
-                “{track.featuredLyrics}”
-              </p>
-            </div>
-          )}
+          {/* Full Song Lyrics */}
+          <div
+            className={`mt-4 p-4 rounded-2xl border ${
+              isDarkMode ? 'bg-white/5 border-white/10' : 'bg-neutral-50 border-neutral-200'
+            }`}
+          >
+            <LyricsViewer
+              lyrics={getTrackLyrics(track)}
+              title={track.title}
+              artist={track.artist}
+              isDarkMode={isDarkMode}
+              maxHeight="max-h-[280px]"
+            />
+          </div>
 
           {/* Action buttons */}
           <div className="mt-6 flex items-center gap-3">

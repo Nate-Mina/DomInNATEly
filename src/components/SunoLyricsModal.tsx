@@ -103,7 +103,6 @@ export const SunoLyricsModal: React.FC<SunoLyricsModalProps> = ({
               src={track.image}
               alt={track.title}
               className="w-12 h-12 rounded-lg object-cover shadow border border-white/10"
-              crossOrigin="anonymous"
             />
             <div className="min-w-0">
               <h3 className="font-bold text-base sm:text-lg truncate tracking-tight">{track.title}</h3>

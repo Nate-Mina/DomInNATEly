@@ -120,6 +120,7 @@ export const SunoEmbedModal: React.FC<SunoEmbedModalProps> = ({
               src={encodeURI(track.videoUrl || '')}
               controls
               autoPlay
+              muted
               className="w-full h-full object-contain"
               poster={track.image}
             />

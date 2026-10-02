@@ -222,7 +222,7 @@ export const SunoAudioPlayer: React.FC<SunoAudioPlayerProps> = ({
     if (isRepeat) {
       if (audioRef.current) {
         audioRef.current.currentTime = 0;
-        audioRef.current.play();
+        audioRef.current.play().catch(() => {});
       }
     } else {
       handleNext();

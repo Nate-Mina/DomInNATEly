@@ -22,7 +22,7 @@ export const SortingAndFilter: React.FC<SortingAndFilterProps> = ({
   selectedCategory,
   onCategoryChange,
   totalResults,
-  totalTracks = 18,
+  totalTracks = 16,
   isDarkMode,
 }) => {
   const categories: { id: CategoryFilter; label: string }[] = [

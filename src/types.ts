@@ -11,6 +11,7 @@ export interface Track {
   tags: string[];
   description?: string;
   featuredLyrics?: string;
+  lyrics?: string; // Full multi-verse song lyrics from Suno catalogue
   // Suno integration fields
   audioUrl?: string;
   videoUrl?: string;
@@ -49,7 +50,8 @@ export const sunoToTrack = (st: SunoTrack): Track => ({
   tags: st.tags,
   description: `Suno AI Track • @${st.handle}`,
   featuredLyrics: st.lyrics,
-  audioUrl: st.audioUrl,
+  lyrics: st.lyrics,
+  audioUrl: st.videoUrl || st.audioUrl,
   videoUrl: st.videoUrl,
   embedUrl: st.embedUrl,
   sunoUrl: st.sunoUrl,

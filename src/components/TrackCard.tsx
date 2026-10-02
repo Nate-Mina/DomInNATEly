@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, Share2, Youtube, Clock, Music } from 'lucide-react';
+import { Play, Pause, Share2, Youtube, Clock, Music, FileText } from 'lucide-react';
 import { Track } from '../types';
 
 interface TrackCardProps {
@@ -9,6 +9,7 @@ interface TrackCardProps {
   onPlay: (track: Track) => void;
   onOpenShare: (track: Track) => void;
   onOpenDetails?: (track: Track) => void;
+  onOpenLyrics?: (track: Track) => void;
   isDarkMode: boolean;
 }
 
@@ -19,6 +20,7 @@ export const TrackCard: React.FC<TrackCardProps> = ({
   onPlay,
   onOpenShare,
   onOpenDetails,
+  onOpenLyrics,
   isDarkMode,
 }) => {
   return (
@@ -167,30 +169,52 @@ export const TrackCard: React.FC<TrackCardProps> = ({
             isDarkMode ? 'border-white/10' : 'border-neutral-200'
           }`}
         >
-          {/* Left: Play button / View Details */}
-          <button
-            id={`card-play-toggle-${track.id}`}
-            onClick={() => onPlay(track)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
-              isCurrentTrack && isPlaying
-                ? 'bg-cyan-500 text-black font-bold'
-                : isDarkMode
-                ? 'bg-white/5 hover:bg-white/10 text-white border border-white/10'
-                : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-800'
-            }`}
-          >
-            {isCurrentTrack && isPlaying ? (
-              <>
-                <Pause className="w-3.5 h-3.5 fill-current" />
-                <span>Pause</span>
-              </>
-            ) : (
-              <>
-                <Play className="w-3.5 h-3.5 fill-current" />
-                <span>Play</span>
-              </>
+          {/* Left: Play button & Lyrics button */}
+          <div className="flex items-center gap-1.5">
+            <button
+              id={`card-play-toggle-${track.id}`}
+              onClick={() => onPlay(track)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                isCurrentTrack && isPlaying
+                  ? 'bg-cyan-500 text-black font-bold'
+                  : isDarkMode
+                  ? 'bg-white/5 hover:bg-white/10 text-white border border-white/10'
+                  : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-800'
+              }`}
+            >
+              {isCurrentTrack && isPlaying ? (
+                <>
+                  <Pause className="w-3.5 h-3.5 fill-current" />
+                  <span>Pause</span>
+                </>
+              ) : (
+                <>
+                  <Play className="w-3.5 h-3.5 fill-current" />
+                  <span>Play</span>
+                </>
+              )}
+            </button>
+
+            {onOpenLyrics && (
+              <button
+                id={`card-lyrics-btn-${track.id}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenLyrics(track);
+                }}
+                className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all ${
+                  isDarkMode
+                    ? 'bg-white/5 hover:bg-white/10 text-white/80 hover:text-cyan-400 border border-white/10'
+                    : 'bg-neutral-100 hover:bg-neutral-200 text-neutral-700'
+                }`}
+                title="View Full Lyrics"
+                aria-label={`View lyrics for ${track.title}`}
+              >
+                <FileText className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="hidden sm:inline">Lyrics</span>
+              </button>
             )}
-          </button>
+          </div>
 
           {/* Right: Social Media Sharing buttons for this song */}
           <div className="flex items-center gap-1">

@@ -8,29 +8,56 @@ import { SortingAndFilter } from './components/SortingAndFilter';
 import { AudioPlayer } from './components/AudioPlayer';
 import { ShareModal } from './components/ShareModal';
 import { TrackDetailModal } from './components/TrackDetailModal';
+import { LyricsModal } from './components/LyricsModal';
+import { LyricsViewer } from './components/LyricsViewer';
+import { getTrackLyrics } from './data/lyrics';
 import { SunoPage } from './components/SunoPage';
-import { Play, Pause, Shuffle, LayoutGrid, List, Music, Sparkles, Disc, Heart, Share2, ExternalLink, Flame, Clock } from 'lucide-react';
+import { ShowcaseVideoPlayer } from './components/ShowcaseVideoPlayer';
+import { Play, Pause, Shuffle, LayoutGrid, List, Music, Sparkles, Disc, Heart, Share2, ExternalLink, Flame, Clock, Tv, FileText } from 'lucide-react';
 
 export default function App() {
-  // Dark Mode state with localStorage persistence
+  // Dark Mode state with safe localStorage persistence
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('dominnately_theme');
-      if (saved) return saved === 'dark';
-      return true; // Default to dark mode for rock/metal band aesthetic
+      try {
+        const saved = window.localStorage?.getItem('dominnately_theme');
+        if (saved) return saved === 'dark';
+      } catch (err) {
+        // Fallback for sandboxed iframes or restricted storage
+        return true;
+      }
     }
-    return true;
+    return true; // Default to dark mode for rock/metal band aesthetic
   });
 
   // Active Page State ('youtube' | 'suno')
   const [activePage, setActivePage] = useState<ActivePage>('youtube'); // Default to YouTube Audio Gallery first
 
+  // Screen width state for desktop XL stage vs mobile audio player
+  const [isDesktopXL, setIsDesktopXL] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 1280;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktopXL(window.innerWidth >= 1280);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // YouTube Player State
-  const [currentTrack, setCurrentTrack] = useState<Track | null>(TRACKS[0]);
+  const [currentTrack, setCurrentTrack] = useState<Track | null>(TRACKS[0] || null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
+  // Desktop Stage View Mode ('video' | 'lyrics' | 'artwork')
+  const [stageMode, setStageMode] = useState<'video' | 'lyrics' | 'artwork'>('video');
+
   // Suno Player State
-  const [currentSunoTrack, setCurrentSunoTrack] = useState<SunoTrack | null>(SUNO_TRACKS[0]);
+  const [currentSunoTrack, setCurrentSunoTrack] = useState<SunoTrack | null>(SUNO_TRACKS[0] || null);
   const [isSunoPlaying, setIsSunoPlaying] = useState<boolean>(false);
 
   // Sorting & Filtering State
@@ -42,10 +69,15 @@ export default function App() {
   // Modals
   const [sharingTrack, setSharingTrack] = useState<Track | null>(null);
   const [detailedTrack, setDetailedTrack] = useState<Track | null>(null);
+  const [lyricsTrack, setLyricsTrack] = useState<Track | null>(null);
 
-  // Persist dark mode setting
+  // Persist dark mode setting safely
   useEffect(() => {
-    localStorage.setItem('dominnately_theme', isDarkMode ? 'dark' : 'light');
+    try {
+      window.localStorage?.setItem('dominnately_theme', isDarkMode ? 'dark' : 'light');
+    } catch (err) {
+      // Ignore storage errors in restricted contexts
+    }
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
     } else {
@@ -210,21 +242,25 @@ export default function App() {
           </button>
         </div>
 
-        {activePage === 'suno' ? (
-          <SunoPage
-            isDarkMode={isDarkMode}
-            currentTrack={activeSunoTrack}
-            isPlaying={isPlaying && Boolean(currentTrack?.isSuno)}
-            onPlayTrack={handlePlaySunoTrack}
-            onTogglePlayPause={() => {
-              setIsPlaying(!isPlaying);
-              setIsSunoPlaying(!isPlaying);
-            }}
-            onTrackChange={handlePlaySunoTrack}
-            onSwitchToYouTube={() => setActivePage('youtube')}
-          />
-        ) : (
-          <>
+        {/* Responsive Catalog Layout (with Now Playing Showcase Stage on XL screens) */}
+        <div className="xl:grid xl:grid-cols-12 xl:gap-8 items-start">
+          {/* Main Catalog Column (8 cols on XL, full width otherwise) */}
+          <div className="xl:col-span-8">
+            {activePage === 'suno' ? (
+              <SunoPage
+                isDarkMode={isDarkMode}
+                currentTrack={activeSunoTrack}
+                isPlaying={isPlaying && Boolean(currentTrack?.isSuno)}
+                onPlayTrack={handlePlaySunoTrack}
+                onTogglePlayPause={() => {
+                  setIsPlaying(!isPlaying);
+                  setIsSunoPlaying(!isPlaying);
+                }}
+                onTrackChange={handlePlaySunoTrack}
+                onSwitchToYouTube={() => setActivePage('youtube')}
+              />
+            ) : (
+              <>
             {/* YouTube Playlist Hero Banner */}
             <section
               id="youtube-hero-banner"
@@ -300,7 +336,7 @@ export default function App() {
                         rel="noopener noreferrer"
                         className="text-cyan-400 hover:underline flex items-center gap-1 font-mono text-xs"
                       >
-                        <span>View All YouTube Playlists</span>
+                        <span>Open Playlist on YouTube</span>
                         <ExternalLink className="w-3 h-3" />
                       </a>
                     </div>
@@ -349,7 +385,7 @@ export default function App() {
                       }`}
                     >
                       <Disc className="w-4 h-4 text-red-500" />
-                      <span>YouTube Playlists</span>
+                      <span>Open YouTube Playlist</span>
                       <ExternalLink className="w-3.5 h-3.5 opacity-60" />
                     </a>
 
@@ -449,11 +485,7 @@ export default function App() {
           isDarkMode={isDarkMode}
         />
 
-        {/* Responsive Catalog Layout (with Now Playing Showcase Stage on XL screens) */}
-        <div className="xl:grid xl:grid-cols-12 xl:gap-8 items-start">
-          {/* Main Catalog column */}
-          <div className="xl:col-span-8">
-            {filteredAndSortedTracks.length > 0 ? (
+        {filteredAndSortedTracks.length > 0 ? (
               viewMode === 'grid' ? (
                 <div
                   id="tracks-grid-container"
@@ -461,13 +493,14 @@ export default function App() {
                 >
                   {filteredAndSortedTracks.map((track) => (
                     <TrackCard
-                      key={track.id}
+                      key={`${track.id}-${track.index}`}
                       track={track}
                       isPlaying={isPlaying}
                       isCurrentTrack={currentTrack?.id === track.id}
                       onPlay={handlePlayTrack}
                       onOpenShare={(t) => setSharingTrack(t)}
                       onOpenDetails={(t) => setDetailedTrack(t)}
+                      onOpenLyrics={(t) => setLyricsTrack(t)}
                       isDarkMode={isDarkMode}
                     />
                   ))}
@@ -491,7 +524,7 @@ export default function App() {
                     const isCurrent = currentTrack?.id === track.id;
                     return (
                       <div
-                        key={track.id}
+                        key={`${track.id}-${track.index}`}
                         id={`track-list-item-${track.id}`}
                         onClick={() => handlePlayTrack(track)}
                         className={`group p-3 sm:p-3.5 rounded-xl border transition-all flex items-center justify-between cursor-pointer ${
@@ -559,6 +592,22 @@ export default function App() {
                           {/* Col: Actions */}
                           <div className="col-span-2 sm:col-span-1 flex items-center justify-end gap-1">
                             <button
+                              id={`list-lyrics-btn-${track.id}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setLyricsTrack(track);
+                              }}
+                              className={`p-1.5 rounded-md transition-colors ${
+                                isDarkMode
+                                  ? 'text-white/50 hover:text-cyan-400 hover:bg-white/10'
+                                  : 'text-neutral-500 hover:text-black hover:bg-neutral-200'
+                              }`}
+                              title="View Full Lyrics"
+                              aria-label={`View lyrics for ${track.title}`}
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                            </button>
+                            <button
                               id={`list-share-btn-${track.id}`}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -606,102 +655,207 @@ export default function App() {
                 </button>
               </div>
             )}
-          </div>
+          </>
+        )}
+      </div>
 
-          {/* Right Column: Immersive UI Now Playing Showcase Stage (Desktop XL) */}
+      {/* Right Column: Immersive UI Now Playing Showcase Stage (Desktop XL) */}
+      {(() => {
+        const showcaseTrack = currentTrack || (activePage === 'suno' ? sunoTracksAsStandard[0] : TRACKS[0]);
+        if (!showcaseTrack) return null;
+        return (
           <aside className="hidden xl:block xl:col-span-4 sticky top-24">
-            <div
-              id="immersive-now-playing-stage"
-              className={`rounded-3xl border p-6 flex flex-col items-center justify-center backdrop-blur-xl transition-all shadow-2xl relative overflow-hidden ${
-                isDarkMode
-                  ? 'bg-black/40 border-white/10 text-white'
-                  : 'bg-white/90 border-neutral-200 text-neutral-900'
-              }`}
-            >
-              {/* Ambient Cyan Pulse Glow from Design */}
-              <div className="absolute -top-10 -right-10 w-48 h-48 bg-cyan-500/15 blur-[60px] rounded-full pointer-events-none animate-pulse" />
-              <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-purple-600/15 blur-[60px] rounded-full pointer-events-none" />
+                <div
+                  id="immersive-now-playing-stage"
+                  className={`rounded-3xl border p-5 sm:p-6 flex flex-col items-center justify-center backdrop-blur-xl transition-all shadow-2xl relative overflow-hidden ${
+                    isDarkMode
+                      ? 'bg-black/60 border-white/10 text-white'
+                      : 'bg-white/95 border-neutral-200 text-neutral-900'
+                  }`}
+                >
+                  {/* Ambient Cyan Pulse Glow from Design */}
+                  <div className="absolute -top-10 -right-10 w-48 h-48 bg-cyan-500/15 blur-[60px] rounded-full pointer-events-none animate-pulse" />
+                  <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-purple-600/15 blur-[60px] rounded-full pointer-events-none" />
 
-              {/* Artwork Box */}
-              <div className="relative w-full aspect-square mb-6 group">
-                <div className="absolute inset-0 bg-cyan-500/20 blur-[50px] rounded-full animate-pulse pointer-events-none" />
-                <div className="relative z-10 w-full h-full bg-gradient-to-br from-neutral-800 to-black border border-white/20 rounded-2xl overflow-hidden shadow-2xl flex items-center justify-center">
-                  <img
-                    src={currentTrack.thumbnail}
-                    alt={currentTrack.title}
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
-                  {/* Subtle D-LY typographic watermark */}
-                  <div className="absolute bottom-3 right-3 text-2xl font-black text-white/25 font-mono tracking-widest pointer-events-none drop-shadow-md">
-                    D-LY
+                  {/* Stage Mode Tabs: Video Player, Lyrics Viewer, Artwork View */}
+                  <div className="flex items-center justify-between w-full mb-3.5 z-20">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${isPlaying ? 'bg-cyan-400 animate-ping' : 'bg-white/30'}`} />
+                      <span className="text-[11px] font-mono font-bold tracking-widest uppercase text-cyan-400">
+                        {isPlaying ? 'Live Player Stage' : 'Now Playing'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center bg-black/50 p-1 rounded-xl border border-white/10 text-xs">
+                      <button
+                        onClick={() => setStageMode('video')}
+                        className={`px-2.5 py-1 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all ${
+                          stageMode === 'video'
+                            ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/25'
+                            : 'text-white/60 hover:text-white'
+                        }`}
+                        title="Watch Music Video"
+                      >
+                        <Tv className="w-3.5 h-3.5" />
+                        <span>Video</span>
+                      </button>
+                      <button
+                        onClick={() => setStageMode('lyrics')}
+                        className={`px-2.5 py-1 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all ${
+                          stageMode === 'lyrics'
+                            ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/25'
+                            : 'text-white/60 hover:text-white'
+                        }`}
+                        title="View Full Lyrics"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>Lyrics</span>
+                      </button>
+                      <button
+                        onClick={() => setStageMode('artwork')}
+                        className={`px-2.5 py-1 rounded-lg font-bold text-xs flex items-center gap-1.5 transition-all ${
+                          stageMode === 'artwork'
+                            ? 'bg-cyan-500 text-black shadow-md shadow-cyan-500/25'
+                            : 'text-white/60 hover:text-white'
+                        }`}
+                        title="View Album Art"
+                      >
+                        <Disc className="w-3.5 h-3.5" />
+                        <span>Art</span>
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Play Button Overlay */}
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <button
-                      onClick={() => setIsPlaying(!isPlaying)}
-                      className="w-14 h-14 rounded-full bg-cyan-400 text-black flex items-center justify-center shadow-xl hover:scale-105 transition-transform"
-                      aria-label="Toggle playback"
-                    >
-                      {isPlaying ? (
-                        <Pause className="w-6 h-6 fill-current" />
-                      ) : (
-                        <Play className="w-6 h-6 fill-current translate-x-0.5" />
-                      )}
-                    </button>
+                  {/* Main Visual Display Area */}
+                  <div className="relative w-full mb-4 z-10">
+                    {/* VIDEO MODE: Real interactive video player for YouTube & Suno */}
+                    <div className={stageMode === 'video' ? 'block' : 'hidden'}>
+                      <ShowcaseVideoPlayer
+                        track={showcaseTrack}
+                        isPlaying={isPlaying && currentTrack?.id === showcaseTrack.id}
+                        onPlay={(track) => {
+                          if (currentTrack?.id === track.id) {
+                            setIsPlaying(true);
+                          } else {
+                            handlePlayTrack(track);
+                          }
+                        }}
+                        onPause={() => setIsPlaying(false)}
+                        onEnded={() => {
+                          const list = activePlaylistForAudioPlayer;
+                          const idx = list.findIndex((t) => t.id === showcaseTrack.id);
+                          if (idx !== -1 && idx < list.length - 1) {
+                            handlePlayTrack(list[idx + 1]);
+                          } else if (list.length > 0) {
+                            handlePlayTrack(list[0]);
+                          }
+                        }}
+                        isDarkMode={isDarkMode}
+                      />
+                    </div>
+
+                    {/* LYRICS MODE: Formatted Full Song Lyrics */}
+                    {stageMode === 'lyrics' && (
+                      <div className="w-full p-4 rounded-2xl border border-white/10 bg-neutral-900/80 backdrop-blur-md shadow-xl">
+                        <LyricsViewer
+                          lyrics={getTrackLyrics(showcaseTrack)}
+                          title={showcaseTrack.title}
+                          artist={showcaseTrack.artist}
+                          isDarkMode={isDarkMode}
+                          maxHeight="max-h-[300px]"
+                        />
+                      </div>
+                    )}
+
+                    {/* ARTWORK MODE: Full Artwork Box with Pulsing Glow & Watermark */}
+                    {stageMode === 'artwork' && (
+                      <div className="relative w-full aspect-square group">
+                        <div className="absolute inset-0 bg-cyan-500/20 blur-[50px] rounded-full animate-pulse pointer-events-none" />
+                        <div className="relative z-10 w-full h-full bg-gradient-to-br from-neutral-800 to-black border border-white/20 rounded-2xl overflow-hidden shadow-2xl flex items-center justify-center">
+                          <img
+                            src={showcaseTrack.thumbnail}
+                            alt={showcaseTrack.title}
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="absolute bottom-3 right-3 text-2xl font-black text-white/25 font-mono tracking-widest pointer-events-none drop-shadow-md">
+                            D-LY
+                          </div>
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <button
+                              onClick={() => {
+                                if (currentTrack?.id === showcaseTrack.id) {
+                                  setIsPlaying(!isPlaying);
+                                } else {
+                                  handlePlayTrack(showcaseTrack);
+                                }
+                              }}
+                              className="w-14 h-14 rounded-full bg-cyan-400 text-black flex items-center justify-center shadow-xl hover:scale-105 transition-transform"
+                              aria-label="Toggle playback"
+                            >
+                              {isPlaying && currentTrack?.id === showcaseTrack.id ? (
+                                <Pause className="w-6 h-6 fill-current" />
+                              ) : (
+                                <Play className="w-6 h-6 fill-current translate-x-0.5" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Track Title, Artist, & Metadata */}
+                  <div className="text-center w-full z-10">
+                    <h2 className="text-xl font-black mb-1 tracking-tight truncate hover:text-cyan-400 transition-colors" title={showcaseTrack.title}>
+                      {showcaseTrack.title}
+                    </h2>
+                    <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-3">
+                      {isPlaying && currentTrack?.id === showcaseTrack.id ? 'Now Playing' : 'Selected Track'} • #{showcaseTrack.index.toString().padStart(2, '0')}
+                    </p>
+
+                    {/* Equalizer Bars */}
+                    <div className="flex gap-1 justify-center items-end h-7 mb-4">
+                      <div className={`w-1 bg-cyan-500 rounded-full ${isPlaying && currentTrack?.id === showcaseTrack.id ? 'h-[60%] animate-eq-1' : 'h-[25%]'}`} />
+                      <div className={`w-1 bg-cyan-500 rounded-full ${isPlaying && currentTrack?.id === showcaseTrack.id ? 'h-[90%] animate-eq-2' : 'h-[40%]'}`} />
+                      <div className={`w-1 bg-cyan-500 rounded-full ${isPlaying && currentTrack?.id === showcaseTrack.id ? 'h-[40%] animate-eq-3' : 'h-[20%]'}`} />
+                      <div className={`w-1 bg-cyan-500 rounded-full ${isPlaying && currentTrack?.id === showcaseTrack.id ? 'h-[70%] animate-eq-4' : 'h-[35%]'}`} />
+                      <div className={`w-1 bg-cyan-500 rounded-full ${isPlaying && currentTrack?.id === showcaseTrack.id ? 'h-[30%] animate-eq-2' : 'h-[15%]'}`} />
+                    </div>
+
+                    {/* Action Buttons: Full Lyrics, Share, Details */}
+                    <div className="flex flex-wrap items-center justify-center gap-2">
+                      <button
+                        onClick={() => setLyricsTrack(showcaseTrack)}
+                        className="px-3.5 py-1.5 rounded-full bg-cyan-500 hover:bg-cyan-400 text-black text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-cyan-500/20 transition-all active:scale-95"
+                        title="View Full Lyrics in Modal"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>Full Lyrics</span>
+                      </button>
+
+                      <button
+                        onClick={() => setSharingTrack(showcaseTrack)}
+                        className="px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white border border-white/10 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                        <span>Share</span>
+                      </button>
+
+                      <button
+                        onClick={() => setDetailedTrack(showcaseTrack)}
+                        className="px-3.5 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-white border border-white/10 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all"
+                      >
+                        <Music className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>Story</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Track Title & Artist */}
-              <div className="text-center w-full">
-                <h2 className="text-xl font-black mb-1 tracking-tight truncate" title={currentTrack.title}>
-                  {currentTrack.title}
-                </h2>
-                <p className="text-cyan-400 text-xs font-bold tracking-widest uppercase mb-4">
-                  {isPlaying ? 'Now Playing' : 'Selected Track'} • #{currentTrack.index.toString().padStart(2, '0')}
-                </p>
-
-                {/* Equalizer Bars */}
-                <div className="flex gap-1 justify-center items-end h-8 mb-4">
-                  <div className={`w-1 bg-cyan-500 rounded-full ${isPlaying ? 'h-[60%] animate-eq-1' : 'h-[25%]'}`} />
-                  <div className={`w-1 bg-cyan-500 rounded-full ${isPlaying ? 'h-[90%] animate-eq-2' : 'h-[40%]'}`} />
-                  <div className={`w-1 bg-cyan-500 rounded-full ${isPlaying ? 'h-[40%] animate-eq-3' : 'h-[20%]'}`} />
-                  <div className={`w-1 bg-cyan-500 rounded-full ${isPlaying ? 'h-[70%] animate-eq-4' : 'h-[35%]'}`} />
-                  <div className={`w-1 bg-cyan-500 rounded-full ${isPlaying ? 'h-[30%] animate-eq-2' : 'h-[15%]'}`} />
-                </div>
-
-                {/* Lyrics Excerpt */}
-                {currentTrack.featuredLyrics && (
-                  <p className="text-xs italic text-white/60 mb-5 line-clamp-2 px-2">
-                    “{currentTrack.featuredLyrics}”
-                  </p>
-                )}
-
-                {/* Quick Share Buttons */}
-                <div className="flex items-center justify-center gap-2">
-                  <button
-                    onClick={() => setSharingTrack(currentTrack)}
-                    className="px-4 py-2 rounded-full bg-white/10 hover:bg-cyan-500 hover:text-black text-white border border-white/10 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all"
-                  >
-                    <Share2 className="w-3.5 h-3.5" />
-                    <span>Share Track</span>
-                  </button>
-                  <button
-                    onClick={() => setDetailedTrack(currentTrack)}
-                    className="px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 text-white border border-white/10 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all"
-                  >
-                    <Music className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Details</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </aside>
+              </aside>
+            );
+          })()}
         </div>
-        </>
-      )}
 
         {/* Footer info & playlist credit */}
         <footer
@@ -761,6 +915,8 @@ export default function App() {
           }
         }}
         onOpenShare={(track) => setSharingTrack(track)}
+        onOpenLyrics={(track) => setLyricsTrack(track)}
+        disableInternalPlayback={isDesktopXL}
         isDarkMode={isDarkMode}
         isPlaying={isPlaying}
         setIsPlaying={(playing) => {
@@ -779,7 +935,7 @@ export default function App() {
         isDarkMode={isDarkMode}
       />
 
-      {/* Track Details & Lyrics Modal */}
+      {/* Track Details & Story Modal */}
       <TrackDetailModal
         track={detailedTrack}
         isOpen={!!detailedTrack}
@@ -789,6 +945,18 @@ export default function App() {
         onPlay={handlePlayTrack}
         onOpenShare={(t) => setSharingTrack(t)}
         isDarkMode={isDarkMode}
+      />
+
+      {/* Dedicated Full Song Lyrics Modal with Suno Lyrics */}
+      <LyricsModal
+        track={lyricsTrack}
+        isOpen={!!lyricsTrack}
+        onClose={() => setLyricsTrack(null)}
+        isDarkMode={isDarkMode}
+        isPlaying={isPlaying}
+        isCurrentTrack={currentTrack?.id === lyricsTrack?.id}
+        onPlay={handlePlayTrack}
+        onOpenShare={(t) => setSharingTrack(t)}
       />
     </div>
   );
