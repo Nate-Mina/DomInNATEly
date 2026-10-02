@@ -233,7 +233,7 @@ export const TRACKS: Track[] = RAW_TRACKS.map((t) => ({
   lyrics: YOUTUBE_TO_SUNO_LYRICS[t.id] || t.featuredLyrics || '',
 }));
 
-export const PLAYLIST_URL = 'https://youtube.com/playlist?list=PLcnHmqF3gRltqGbFV9159hzav6eVGVwaH&si=b4SrBLY6K__yoEZG';
+export const PLAYLIST_URL = 'https://youtube.com/playlist?list=PLcnHmqF3gRltqGbFV9159hzav6eVGVwaH&si=m-pggLDCyI2ogv_c';
 export const YOUTUBE_CHANNEL_URL = 'https://www.youtube.com/@DomInNATEly';
 
 export const YOUTUBE_PLAYLIST_INFO = {
@@ -242,7 +242,7 @@ export const YOUTUBE_PLAYLIST_INFO = {
   description: 'Official YouTube audio and video catalogue by DomInNATEly featuring heavy guitar riffs, melodic ballads, and conceptual alt-rock.',
   channel: 'DomInNATEly',
   channelUrl: 'https://www.youtube.com/@DomInNATEly',
-  playlistUrl: 'https://youtube.com/playlist?list=PLcnHmqF3gRltqGbFV9159hzav6eVGVwaH&si=b4SrBLY6K__yoEZG',
+  playlistUrl: 'https://youtube.com/playlist?list=PLcnHmqF3gRltqGbFV9159hzav6eVGVwaH&si=m-pggLDCyI2ogv_c',
   totalTracks: 16,
   totalDurationFormatted: '1 hr 4 min',
   cover: 'https://i.ytimg.com/vi/MPLgPPy9Sjs/hqdefault.jpg',

@@ -244,8 +244,8 @@ export default function App() {
 
         {/* Responsive Catalog Layout (with Now Playing Showcase Stage on XL screens) */}
         <div className="xl:grid xl:grid-cols-12 xl:gap-8 items-start">
-          {/* Main Catalog Column (8 cols on XL, full width otherwise) */}
-          <div className="xl:col-span-8">
+          {/* Main Catalog Column (7 cols on XL, full width otherwise) */}
+          <div className="xl:col-span-7">
             {activePage === 'suno' ? (
               <SunoPage
                 isDarkMode={isDarkMode}
@@ -664,7 +664,7 @@ export default function App() {
         const showcaseTrack = currentTrack || (activePage === 'suno' ? sunoTracksAsStandard[0] : TRACKS[0]);
         if (!showcaseTrack) return null;
         return (
-          <aside className="hidden xl:block xl:col-span-4 sticky top-24">
+          <aside className="hidden xl:block xl:col-span-5 sticky top-24">
                 <div
                   id="immersive-now-playing-stage"
                   className={`rounded-3xl border p-5 sm:p-6 flex flex-col items-center justify-center backdrop-blur-xl transition-all shadow-2xl relative overflow-hidden ${
