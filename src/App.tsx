@@ -13,6 +13,8 @@ import { LyricsViewer } from './components/LyricsViewer';
 import { getTrackLyrics } from './data/lyrics';
 import { SunoPage } from './components/SunoPage';
 import { ShowcaseVideoPlayer } from './components/ShowcaseVideoPlayer';
+import { SocialSubscribeBanner } from './components/SocialSubscribeBanner';
+import { SocialFooter } from './components/SocialFooter';
 import { Play, Pause, Shuffle, LayoutGrid, List, Music, Sparkles, Disc, Heart, Share2, ExternalLink, Flame, Clock, Tv, FileText } from 'lucide-react';
 
 export default function App() {
@@ -354,7 +356,17 @@ export default function App() {
                         rel="noopener noreferrer"
                         className="text-red-400 hover:underline flex items-center gap-1 font-mono text-xs"
                       >
-                        <span>Official Channel</span>
+                        <span>▶️ YouTube: @DomInNATEly</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                      <span className="opacity-40">•</span>
+                      <a
+                        href="https://tiktok.com/@domInNATEly"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-pink-400 hover:underline flex items-center gap-1 font-mono text-xs"
+                      >
+                        <span>🎵 TikTok: @domInNATEly</span>
                         <ExternalLink className="w-3 h-3" />
                       </a>
                       <span className="opacity-40">•</span>
@@ -433,6 +445,10 @@ export default function App() {
                 </div>
               </div>
             </section>
+
+            {/* Social Follow & Subscribe Banner */}
+            <SocialSubscribeBanner isDarkMode={isDarkMode} />
+
         {/* Quick Actions Bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <div className="flex items-center gap-2.5">
@@ -957,31 +973,8 @@ export default function App() {
       })()}
         </div>
 
-        {/* Footer info & playlist credit */}
-        <footer
-          id="music-gallery-footer"
-          className={`mt-16 pt-8 border-t text-center text-xs ${
-            isDarkMode ? 'border-white/10 text-white/50' : 'border-neutral-200 text-neutral-500'
-          }`}
-        >
-          <p className="font-bold text-sm mb-1 tracking-wider text-cyan-400 uppercase font-mono">
-            DomInNATEly
-          </p>
-          <p>
-            Official Music Archive & Player • Based on the playlist{' '}
-            <a
-              href={PLAYLIST_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-cyan-400 hover:underline"
-            >
-              DomInNATEly's Music
-            </a>
-          </p>
-          <p className="mt-2 text-[11px] opacity-75">
-            All songs written & performed by DomInNATEly / Dom-I-NATE. Audio powered by YouTube Media Integration.
-          </p>
-        </footer>
+        {/* Rich Artist & Social Footer */}
+        <SocialFooter isDarkMode={isDarkMode} />
       </main>
 
       {/* Interactive Sticky Audio Player */}

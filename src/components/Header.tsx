@@ -75,7 +75,7 @@ export const Header: React.FC<HeaderProps> = ({
               title="Visit DomInNATEly on YouTube"
             >
               <Disc3 className="w-3.5 h-3.5 text-cyan-400 animate-spin" style={{ animationDuration: '6s' }} />
-              <span className="hidden lg:inline">Channel</span>
+              <span className="hidden lg:inline">YT Channel</span>
               <ExternalLink className="w-3 h-3 opacity-60" />
             </a>
 
@@ -93,6 +93,23 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Music2 className="w-3.5 h-3.5 text-red-500" />
               <span className="hidden lg:inline">YT Playlists</span>
+              <ExternalLink className="w-3 h-3 opacity-60" />
+            </a>
+
+            <a
+              id="tiktok-header-link"
+              href="https://tiktok.com/@domInNATEly"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold uppercase tracking-wider transition-all ${
+                isDarkMode
+                  ? 'bg-white/5 border-white/10 text-white/80 hover:text-pink-400 hover:border-pink-400/40 hover:bg-white/10'
+                  : 'bg-neutral-100 border-neutral-300 text-neutral-700 hover:text-pink-600 hover:bg-neutral-200'
+              }`}
+              title="Follow @domInNATEly on TikTok"
+            >
+              <span className="text-xs">🎵</span>
+              <span className="hidden lg:inline">TikTok</span>
               <ExternalLink className="w-3 h-3 opacity-60" />
             </a>
 

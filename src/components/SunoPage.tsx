@@ -6,6 +6,7 @@ import { SunoTrackCard } from './SunoTrackCard';
 import { SunoLyricsModal } from './SunoLyricsModal';
 import { SunoEmbedModal } from './SunoEmbedModal';
 import { SunoShareModal } from './SunoShareModal';
+import { SocialSubscribeBanner } from './SocialSubscribeBanner';
 import {
   Play,
   Pause,
@@ -208,15 +209,23 @@ export const SunoPage: React.FC<SunoPageProps> = ({
               <div className="mt-2 flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3 text-xs sm:text-sm font-medium">
                 <span className="text-cyan-400 font-bold">{SUNO_PLAYLIST_INFO.user_display_name}</span>
                 <span className="opacity-40">•</span>
-                <span className="font-mono text-xs opacity-75">@{SUNO_PLAYLIST_INFO.user_handle}</span>
-                <span className="opacity-40">•</span>
                 <a
-                  href={`https://www.tiktok.com/${SUNO_PLAYLIST_INFO.tiktok_handle}`}
+                  href="https://tiktok.com/@domInNATEly"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-cyan-400 hover:underline flex items-center gap-1 font-mono text-xs"
+                  className="text-pink-400 hover:underline flex items-center gap-1 font-mono text-xs"
                 >
-                  <span>TikTok: {SUNO_PLAYLIST_INFO.tiktok_handle}</span>
+                  <span>🎵 TikTok: @domInNATEly</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+                <span className="opacity-40">•</span>
+                <a
+                  href="https://www.youtube.com/@DomInNATEly"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-red-400 hover:underline flex items-center gap-1 font-mono text-xs"
+                >
+                  <span>▶️ YouTube: @DomInNATEly</span>
                   <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
@@ -300,6 +309,9 @@ export const SunoPage: React.FC<SunoPageProps> = ({
           </div>
         </div>
       </section>
+
+      {/* Social Follow & Subscribe Banner */}
+      <SocialSubscribeBanner isDarkMode={isDarkMode} />
 
       {/* Search, Filter & View Controls */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mb-6">
