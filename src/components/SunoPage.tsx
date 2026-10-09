@@ -58,12 +58,19 @@ export const SunoPage: React.FC<SunoPageProps> = ({
   const availableTags = useMemo(() => {
     return [
       { id: 'all', label: 'All Tracks' },
+      { id: 'alt-drill', label: 'Alt-Drill & Trap' },
       { id: 'rock', label: 'Rock & Alt Pop' },
       { id: 'hip-hop', label: 'Rap & Hip-Hop' },
-      { id: 'trap', label: 'Trap & Dubstep' },
       { id: 'duet', label: 'Duets' },
-      { id: 'ballad', label: 'Ballads' },
+      { id: 'ballad', label: 'Ballads & Acoustic' },
     ];
+  }, []);
+
+  const formattedTotalDuration = useMemo(() => {
+    const totalSecs = SUNO_PLAYLIST_INFO.totalDurationSeconds || SUNO_TRACKS.reduce((acc, t) => acc + t.duration, 0);
+    const hrs = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    return `${hrs} hr ${mins} min`;
   }, []);
 
   // Filter & Sort Tracks
@@ -86,14 +93,14 @@ export const SunoPage: React.FC<SunoPageProps> = ({
     if (selectedTag !== 'all') {
       list = list.filter((t) => {
         const fullText = (t.tags.join(' ') + ' ' + t.title + ' ' + t.lyrics).toLowerCase();
+        if (selectedTag === 'alt-drill') {
+          return fullText.includes('drill') || fullText.includes('trap') || fullText.includes('dubstep');
+        }
         if (selectedTag === 'rock') {
           return fullText.includes('rock') || fullText.includes('pop') || fullText.includes('punk');
         }
         if (selectedTag === 'hip-hop') {
           return fullText.includes('rap') || fullText.includes('hip-hop') || fullText.includes('hip hop');
-        }
-        if (selectedTag === 'trap') {
-          return fullText.includes('trap') || fullText.includes('dubstep') || fullText.includes('halftime');
         }
         if (selectedTag === 'duet') {
           return fullText.includes('duet') || fullText.includes('female vocals');
@@ -181,14 +188,14 @@ export const SunoPage: React.FC<SunoPageProps> = ({
                     isDarkMode ? 'bg-white/5 border-white/10 text-white/70' : 'bg-neutral-100 border-neutral-300 text-neutral-700'
                   }`}
                 >
-                  20 Curated Tracks
+                  {SUNO_TRACKS.length} Official Tracks
                 </span>
                 <span
                   className={`px-3 py-1 rounded-full text-xs font-mono border ${
                     isDarkMode ? 'bg-white/5 border-white/10 text-white/70' : 'bg-neutral-100 border-neutral-300 text-neutral-700'
                   }`}
                 >
-                  1 hr 26 min
+                  {formattedTotalDuration}
                 </span>
               </div>
 
@@ -326,7 +333,7 @@ export const SunoPage: React.FC<SunoPageProps> = ({
                 : 'bg-white border-neutral-300 text-neutral-800'
             }`}
           >
-            <option value="index">Tracklist Order (#1 - #20)</option>
+            <option value="index">Tracklist Order (#1 - #{SUNO_TRACKS.length})</option>
             <option value="title">Title (A to Z)</option>
             <option value="duration-desc">Duration (Longest first)</option>
             <option value="duration-asc">Duration (Shortest first)</option>
@@ -419,17 +426,15 @@ export const SunoPage: React.FC<SunoPageProps> = ({
         ) : (
           /* List View */
           <div id="suno-tracks-list" className="flex flex-col gap-2.5">
-            {/* Table Column Header */}
+            {/* Table Column Header matching Clean Minimal UI */}
             <div
               className={`grid grid-cols-12 text-[10px] uppercase tracking-[0.2em] font-bold px-4 py-2 ${
                 isDarkMode ? 'text-white/40' : 'text-neutral-500'
               }`}
             >
               <div className="col-span-1 text-center">#</div>
-              <div className="col-span-6 sm:col-span-5">Track Info</div>
-              <div className="hidden sm:block sm:col-span-3">Style / Genre</div>
-              <div className="col-span-3 sm:col-span-2 text-right sm:text-left">Duration</div>
-              <div className="col-span-2 sm:col-span-1 text-right">Actions</div>
+              <div className="col-span-8 sm:col-span-9">Track Name</div>
+              <div className="col-span-3 sm:col-span-2 text-right">Duration</div>
             </div>
 
             {filteredTracks.map((track) => {
@@ -438,6 +443,7 @@ export const SunoPage: React.FC<SunoPageProps> = ({
                 <div
                   key={`${track.id}-${track.index}`}
                   id={`suno-list-item-${track.id}`}
+                  onClick={() => onPlayTrack(track)}
                   className={`group p-3 sm:p-3.5 rounded-xl border transition-all flex items-center justify-between cursor-pointer ${
                     isCurrent
                       ? isDarkMode
@@ -449,10 +455,7 @@ export const SunoPage: React.FC<SunoPageProps> = ({
                   }`}
                 >
                   {/* Left info */}
-                  <div
-                    onClick={() => onPlayTrack(track)}
-                    className="grid grid-cols-12 items-center flex-1 min-w-0"
-                  >
+                  <div className="grid grid-cols-12 items-center flex-1 min-w-0">
                     {/* Index or play icon */}
                     <div className="col-span-1 flex items-center justify-center font-mono text-xs opacity-60">
                       {isCurrent && isPlaying ? (
@@ -463,7 +466,7 @@ export const SunoPage: React.FC<SunoPageProps> = ({
                     </div>
 
                     {/* Image & Title */}
-                    <div className="col-span-6 sm:col-span-5 flex items-center gap-3 min-w-0 pr-3">
+                    <div className="col-span-8 sm:col-span-9 flex items-center gap-3 min-w-0 pr-3">
                       <div className="relative w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-neutral-900">
                         <img
                           src={track.image}
@@ -475,29 +478,18 @@ export const SunoPage: React.FC<SunoPageProps> = ({
                         </div>
                       </div>
                       <div className="min-w-0">
-                        <h4 className="font-bold text-xs sm:text-sm truncate">{track.title}</h4>
-                        <p className="text-[11px] opacity-60 truncate">@{track.handle}</p>
+                        <h4
+                          className={`font-bold text-xs sm:text-sm truncate transition-colors ${
+                            isCurrent ? 'text-cyan-400' : 'group-hover:text-cyan-400'
+                          }`}
+                        >
+                          {track.title}
+                        </h4>
                       </div>
                     </div>
 
-                    {/* Tags */}
-                    <div className="hidden sm:flex sm:col-span-3 items-center gap-1 pr-3 overflow-hidden">
-                      {track.tags && track.tags.length > 0 ? (
-                        track.tags.slice(0, 2).map((tg, i) => (
-                          <span
-                            key={i}
-                            className="text-[10px] px-2 py-0.5 rounded font-mono truncate border border-white/10 opacity-70"
-                          >
-                            {tg}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-[10px] opacity-40 italic">Suno v4.5</span>
-                      )}
-                    </div>
-
                     {/* Duration */}
-                    <div className="col-span-3 sm:col-span-2 text-right sm:text-left font-mono text-xs opacity-75">
+                    <div className="col-span-3 sm:col-span-2 text-right font-mono text-xs opacity-75">
                       {track.durationFormatted}
                     </div>
                   </div>

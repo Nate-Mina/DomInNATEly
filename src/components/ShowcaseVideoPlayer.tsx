@@ -11,6 +11,7 @@ interface ShowcaseVideoPlayerProps {
   isDarkMode: boolean;
   volume?: number;
   isMuted?: boolean;
+  size?: 'sm' | 'md' | 'lg';
 }
 
 export const ShowcaseVideoPlayer: React.FC<ShowcaseVideoPlayerProps> = ({
@@ -22,6 +23,7 @@ export const ShowcaseVideoPlayer: React.FC<ShowcaseVideoPlayerProps> = ({
   isDarkMode,
   volume = 80,
   isMuted = false,
+  size = 'sm',
 }) => {
   const isSuno = Boolean('isSuno' in track ? track.isSuno : track.audioUrl || track.videoUrl);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -74,10 +76,21 @@ export const ShowcaseVideoPlayer: React.FC<ShowcaseVideoPlayerProps> = ({
     ? track.audioUrl
     : `https://cdn1.suno.ai/${track.id}.mp4`;
 
+  const sunoMaxWidth =
+    size === 'sm'
+      ? 'max-w-[270px]'
+      : size === 'md'
+      ? 'max-w-[320px]'
+      : 'max-w-[370px]';
+
   return (
-    <div className="relative w-full aspect-video rounded-2xl overflow-hidden border border-white/20 bg-black shadow-2xl group">
+    <div
+      className={`relative w-full ${
+        isSuno ? `aspect-[9/16] ${sunoMaxWidth} mx-auto` : 'aspect-video'
+      } rounded-2xl overflow-hidden border border-white/20 bg-black shadow-2xl group transition-all duration-300`}
+    >
       {isSuno ? (
-        /* Suno AI Video Player (Plays MP4 video + high fidelity stereo audio) */
+        /* Suno AI Video Player (9:16 aspect ratio) */
         <div className="relative w-full h-full bg-black flex items-center justify-center">
           <video
             ref={videoRef}
@@ -88,7 +101,7 @@ export const ShowcaseVideoPlayer: React.FC<ShowcaseVideoPlayerProps> = ({
             autoPlay={isPlaying}
             playsInline
             preload="auto"
-            className="w-full h-full object-contain bg-black"
+            className="w-full h-full object-cover bg-black"
             onPlay={() => {
               if (!isPlaying) onPlay(track);
             }}
@@ -103,10 +116,10 @@ export const ShowcaseVideoPlayer: React.FC<ShowcaseVideoPlayerProps> = ({
             }}
           />
 
-          {/* Top subtle badge indicating Suno Video Mode */}
-          <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md border border-white/10 text-[10px] font-mono text-cyan-300 font-bold pointer-events-none flex items-center gap-1">
+          {/* Top subtle badge indicating Suno 9:16 Player */}
+          <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md border border-white/10 text-[10px] font-mono text-cyan-300 font-bold pointer-events-none flex items-center gap-1 z-10">
             <Sparkles className="w-3 h-3 text-cyan-400" />
-            <span>Suno Video</span>
+            <span>Suno 9:16 Player</span>
           </div>
         </div>
       ) : (

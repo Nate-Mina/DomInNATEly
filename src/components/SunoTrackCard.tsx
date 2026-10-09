@@ -1,15 +1,15 @@
 import React from 'react';
 import { SunoTrack } from '../types';
-import { Play, Pause, FileText, Tv, Share2, ExternalLink, Sparkles } from 'lucide-react';
+import { Play, Pause } from 'lucide-react';
 
 interface SunoTrackCardProps {
   track: SunoTrack;
   isPlaying: boolean;
   isCurrentTrack: boolean;
   onPlay: (track: SunoTrack) => void;
-  onOpenLyrics: (track: SunoTrack) => void;
-  onOpenEmbed: (track: SunoTrack) => void;
-  onOpenShare: (track: SunoTrack) => void;
+  onOpenLyrics?: (track: SunoTrack) => void;
+  onOpenEmbed?: (track: SunoTrack) => void;
+  onOpenShare?: (track: SunoTrack) => void;
   isDarkMode: boolean;
 }
 
@@ -18,25 +18,8 @@ export const SunoTrackCard: React.FC<SunoTrackCardProps> = ({
   isPlaying,
   isCurrentTrack,
   onPlay,
-  onOpenLyrics,
-  onOpenEmbed,
-  onOpenShare,
   isDarkMode,
 }) => {
-  // Extract a brief lyrics snippet
-  const getLyricsSnippet = (lyrics: string) => {
-    if (!lyrics) return null;
-    const clean = lyrics
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((l) => l && !l.startsWith('[') && !l.startsWith('**['))
-      .slice(0, 2)
-      .join(' / ');
-    return clean || null;
-  };
-
-  const lyricsSnippet = getLyricsSnippet(track.lyrics);
-
   return (
     <div
       id={`suno-track-card-${track.id}`}
@@ -109,112 +92,23 @@ export const SunoTrackCard: React.FC<SunoTrackCardProps> = ({
         )}
       </div>
 
-      {/* Card Content Area */}
-      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between">
-        <div>
-          <div className="flex items-start justify-between gap-2">
-            <h3
-              onClick={() => onPlay(track)}
-              className="font-bold text-sm sm:text-base leading-snug hover:text-cyan-400 cursor-pointer line-clamp-2 transition-colors"
-            >
-              {track.title}
-            </h3>
-          </div>
-
-          <p className="text-xs text-cyan-400/90 font-mono mt-1 flex items-center gap-1.5">
-            <span>@{track.handle}</span>
-            <span className="opacity-40">•</span>
-            <span className="opacity-75">Suno v4.5</span>
-          </p>
-
-          {/* Lyrics Snippet */}
-          {lyricsSnippet && (
-            <div
-              onClick={() => onOpenLyrics(track)}
-              className={`mt-3 p-2.5 rounded-lg text-xs italic line-clamp-2 border transition-colors cursor-pointer ${
-                isDarkMode
-                  ? 'bg-white/5 border-white/5 text-white/70 hover:border-cyan-400/30 hover:text-white'
-                  : 'bg-neutral-50 border-neutral-200 text-neutral-600 hover:border-cyan-500/40'
-              }`}
-            >
-              "{lyricsSnippet}..."
-            </div>
-          )}
-
-          {/* Tags */}
-          {track.tags && track.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-3">
-              {track.tags.slice(0, 3).map((tag, idx) => (
-                <span
-                  key={idx}
-                  className={`text-[10px] px-2 py-0.5 rounded-md font-mono border ${
-                    isDarkMode
-                      ? 'bg-white/5 border-white/10 text-white/60'
-                      : 'bg-neutral-100 border-neutral-200 text-neutral-600'
-                  }`}
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Action Buttons Bar */}
-        <div className="pt-4 mt-4 border-t border-white/10 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5">
-            {/* View Lyrics button */}
-            <button
-              onClick={() => onOpenLyrics(track)}
-              className={`px-2.5 py-1 rounded-md text-xs font-semibold flex items-center gap-1 border transition-colors ${
-                isDarkMode
-                  ? 'bg-white/5 border-white/10 text-white/80 hover:text-cyan-400 hover:border-cyan-400/40'
-                  : 'bg-neutral-100 border-neutral-300 text-neutral-700 hover:bg-neutral-200'
-              }`}
-              title="View full lyrics"
-            >
-              <FileText className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Lyrics</span>
-            </button>
-
-            {/* Video / Embed button */}
-            <button
-              onClick={() => onOpenEmbed(track)}
-              className={`p-1.5 rounded-md text-xs font-semibold border transition-colors ${
-                isDarkMode
-                  ? 'bg-white/5 border-white/10 text-white/80 hover:text-cyan-400 hover:border-cyan-400/40'
-                  : 'bg-neutral-100 border-neutral-300 text-neutral-700 hover:bg-neutral-200'
-              }`}
-              title="Open Suno player / video"
-            >
-              <Tv className="w-3.5 h-3.5 text-cyan-400" />
-            </button>
-
-            {/* Share button */}
-            <button
-              onClick={() => onOpenShare(track)}
-              className={`p-1.5 rounded-md text-xs border transition-colors ${
-                isDarkMode
-                  ? 'bg-white/5 border-white/10 text-white/70 hover:text-white'
-                  : 'bg-neutral-100 border-neutral-300 text-neutral-700 hover:bg-neutral-200'
-              }`}
-              title="Share track"
-            >
-              <Share2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <a
-            href={track.sunoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[11px] font-mono text-cyan-400 hover:underline flex items-center gap-1"
-            title="View on Suno.com"
-          >
-            <span>Suno</span>
-            <ExternalLink className="w-3 h-3" />
-          </a>
-        </div>
+      {/* Card Content Area - Just the Track Name */}
+      <div 
+        onClick={() => onPlay(track)}
+        className="p-3.5 sm:p-4 cursor-pointer"
+      >
+        <h3
+          className={`font-bold text-sm sm:text-base leading-snug line-clamp-1 transition-colors ${
+            isCurrentTrack
+              ? isDarkMode ? 'text-cyan-400' : 'text-cyan-600'
+              : isDarkMode
+              ? 'text-white hover:text-cyan-400'
+              : 'text-neutral-900 hover:text-cyan-600'
+          }`}
+          title={track.title}
+        >
+          {track.title}
+        </h3>
       </div>
     </div>
   );

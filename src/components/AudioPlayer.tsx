@@ -774,7 +774,9 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         onClick={() => setShowVideoModal(false)}
       >
         <div
-          className="relative w-full max-w-3xl aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/10 flex flex-col"
+          className={`relative w-full ${
+            isSunoTrack ? 'max-w-sm sm:max-w-[380px] aspect-[9/16] max-h-[90vh]' : 'max-w-3xl aspect-video'
+          } bg-black rounded-2xl overflow-hidden shadow-2xl border border-white/10 flex flex-col transition-all duration-300`}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="p-3 bg-neutral-950/90 border-b border-white/10 flex items-center justify-between text-xs">

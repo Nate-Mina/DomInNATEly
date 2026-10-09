@@ -97,29 +97,13 @@ export const TrackCard: React.FC<TrackCardProps> = ({
         )}
       </div>
 
-      {/* Card Content */}
-      <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between">
+      {/* Card Content - Clean Track Name */}
+      <div className="p-3.5 sm:p-4 flex-1 flex flex-col justify-between">
         <div>
-          {/* Artist & Category */}
-          <div className="flex items-center justify-between gap-2 mb-1.5">
-            <span className="text-xs font-semibold uppercase tracking-wider text-cyan-400 truncate">
-              {track.artist}
-            </span>
-            <span
-              className={`text-[10px] uppercase font-mono px-2 py-0.5 rounded-full border ${
-                isDarkMode
-                  ? 'bg-white/5 border-white/10 text-white/60'
-                  : 'bg-neutral-100 border-neutral-300 text-neutral-600'
-              }`}
-            >
-              {track.category}
-            </span>
-          </div>
-
           {/* Title */}
           <h3
-            onClick={() => onOpenDetails && onOpenDetails(track)}
-            className={`text-base font-bold line-clamp-1 cursor-pointer transition-colors ${
+            onClick={() => onPlay(track)}
+            className={`text-sm sm:text-base font-bold line-clamp-1 cursor-pointer transition-colors ${
               isCurrentTrack
                 ? isDarkMode ? 'text-cyan-400' : 'text-cyan-700'
                 : isDarkMode
@@ -130,37 +114,6 @@ export const TrackCard: React.FC<TrackCardProps> = ({
           >
             {track.title}
           </h3>
-
-          <p className="text-xs text-white/50 italic mt-0.5">
-            DomInNATEly Originals
-          </p>
-
-          {/* Lyrics Snippet or Description */}
-          {track.featuredLyrics && (
-            <p
-              className={`mt-2 text-xs italic line-clamp-2 leading-relaxed ${
-                isDarkMode ? 'text-white/60' : 'text-neutral-600'
-              }`}
-            >
-              “{track.featuredLyrics}”
-            </p>
-          )}
-
-          {/* Tags */}
-          <div className="mt-3 flex flex-wrap gap-1">
-            {track.tags.map((tag) => (
-              <span
-                key={tag}
-                className={`text-[10px] font-medium px-2 py-0.5 rounded-md ${
-                  isDarkMode
-                    ? 'bg-white/5 text-white/50 border border-white/5'
-                    : 'bg-neutral-100 text-neutral-600'
-                }`}
-              >
-                #{tag}
-              </span>
-            ))}
-          </div>
         </div>
 
         {/* Card Actions & Social Sharing Buttons for Every Song */}

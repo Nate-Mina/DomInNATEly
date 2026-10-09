@@ -23,7 +23,7 @@ export const SunoEmbedModal: React.FC<SunoEmbedModalProps> = ({
       onClick={onClose}
     >
       <div
-        className={`relative w-full max-w-3xl flex flex-col rounded-2xl shadow-2xl border overflow-hidden ${
+        className={`relative w-full max-w-sm sm:max-w-[390px] flex flex-col rounded-2xl shadow-2xl border overflow-hidden max-h-[95vh] ${
           isDarkMode ? 'bg-neutral-950 border-white/10 text-white' : 'bg-white border-neutral-200 text-neutral-900'
         }`}
         onClick={(e) => e.stopPropagation()}
@@ -105,8 +105,8 @@ export const SunoEmbedModal: React.FC<SunoEmbedModalProps> = ({
           </div>
         </div>
 
-        {/* Content Area */}
-        <div className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden">
+        {/* Content Area (9:16 Ratio) */}
+        <div className="relative w-full aspect-[9/16] max-h-[72vh] bg-black flex items-center justify-center overflow-hidden">
           {activeTab === 'embed' ? (
             <iframe
               src={encodeURI(track.embedUrl || '')}
@@ -120,8 +120,8 @@ export const SunoEmbedModal: React.FC<SunoEmbedModalProps> = ({
               src={encodeURI(track.videoUrl || '')}
               controls
               autoPlay
-              muted
-              className="w-full h-full object-contain"
+              playsInline
+              className="w-full h-full object-cover bg-black"
               poster={track.image}
             />
           )}
