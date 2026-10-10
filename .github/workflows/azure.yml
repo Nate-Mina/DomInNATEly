@@ -1,2 +1,2 @@
 - name: Azure WebApp
-  uses: Azure/webapps-deploy@v2.2.19
+  uses: Azure/webapps-deploy@5cfb776
