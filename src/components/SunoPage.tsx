@@ -228,6 +228,17 @@ export const SunoPage: React.FC<SunoPageProps> = ({
                   <span>▶️ YouTube: @DomInNATEly</span>
                   <ExternalLink className="w-3 h-3" />
                 </a>
+                <span className="opacity-40">•</span>
+                <a
+                  href="https://nate-mina.github.io/Portfolio-CV/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-cyan-300 hover:underline flex items-center gap-1 font-mono text-xs"
+                  title="About Nate Mina - Portfolio & CV"
+                >
+                  <span>👤 About Me</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
               </div>
 
               {/* Description */}

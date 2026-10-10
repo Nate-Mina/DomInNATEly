@@ -59,5 +59,17 @@ export const SOCIAL_LINKS: SocialLinkItem[] = [
     icon: '💼',
     color: 'from-sky-600/20 to-cyan-600/20 text-sky-400 border-sky-500/30 hover:border-sky-400',
     actionText: 'Connect'
+  },
+  {
+    id: 'portfolio',
+    name: 'About Me',
+    label: 'Visit Portfolio & CV',
+    url: 'https://nate-mina.github.io/Portfolio-CV/',
+    handle: 'nate-mina.github.io',
+    icon: '👤',
+    color: 'from-cyan-500/20 to-teal-500/20 text-cyan-300 border-cyan-500/30 hover:border-cyan-400',
+    actionText: 'View CV'
   }
 ];
+
+export const ABOUT_ME_URL = 'https://nate-mina.github.io/Portfolio-CV/';

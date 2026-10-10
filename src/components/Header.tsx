@@ -1,7 +1,8 @@
 import React from 'react';
-import { ExternalLink, Music2, Share2, Disc3, Sparkles } from 'lucide-react';
+import { ExternalLink, Music2, Share2, Disc3, Sparkles, User } from 'lucide-react';
 import { PLAYLIST_URL, YOUTUBE_CHANNEL_URL } from '../data/tracks';
 import { SUNO_PLAYLIST_INFO } from '../data/sunoData';
+import { ABOUT_ME_URL } from '../data/socials';
 
 interface HeaderProps {
   isDarkMode: boolean;
@@ -59,7 +60,25 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Center/Right Actions */}
-        <div className="flex items-center gap-3 sm:gap-6">
+        <div className="flex items-center gap-2 sm:gap-4 md:gap-6">
+          {/* About Me Button */}
+          <a
+            id="about-me-header-link"
+            href={ABOUT_ME_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold tracking-wider uppercase transition-all shadow-xs ${
+              isDarkMode
+                ? 'bg-gradient-to-r from-cyan-500/20 via-cyan-400/10 to-teal-500/20 border-cyan-400/50 text-cyan-300 hover:text-white hover:bg-cyan-500/30 hover:border-cyan-300 hover:shadow-cyan-500/20'
+                : 'bg-cyan-50 border-cyan-400 text-cyan-800 hover:bg-cyan-100 hover:text-cyan-950'
+            }`}
+            title="About Me - Nate Mina Portfolio & CV"
+          >
+            <User className="w-3.5 h-3.5 text-cyan-400" />
+            <span>About Me</span>
+            <ExternalLink className="w-3 h-3 opacity-60" />
+          </a>
+
           {/* External Links */}
           <div className="hidden sm:flex items-center gap-2">
             <a
